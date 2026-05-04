@@ -393,7 +393,7 @@ html = re.sub(r"var calMonth=\d+,calYear=\d+,calSelectedDate=", f"var calMonth={
 last_updated_str = datetime.now(IST).strftime('%d %b %Y, %H:%M IST')
 # Replace the date-badge content (header) — preserves the gen-time span
 html = re.sub(
-    r'<div class="date-badge">[^<]*&middot;[^<]*<span id="gen-time"></span></div>',
+    r'<div class="date-badge">[^<]*&middot;[^<]*<span id="gen-time">[^<]*</span></div>',
     f'<div class="date-badge">Data: {new_max} &middot; <span id="gen-time">Updated {last_updated_str}</span></div>',
     html, count=1
 )
