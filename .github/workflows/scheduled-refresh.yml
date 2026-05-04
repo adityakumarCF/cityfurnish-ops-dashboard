@@ -1,12 +1,12 @@
-name: Refresh dashboard from Metabase
+name: Refresh dashboard and deploy to Pages
 
 on:
   # Every 30 minutes (UTC). 30 min cadence = ~48 runs/day, well under the 2000 free Action minutes/month.
   schedule:
     - cron: '*/30 * * * *'
-  # Allows manual trigger from the Actions tab in GitHub, and POST via API for the in-dashboard "Refresh Now" button.
+  # Manual trigger from the Actions tab + the in-dashboard "Refresh Now" button (via workflow_dispatch API).
   workflow_dispatch: {}
-  # Also re-deploy when the dashboard HTML or refresh script is committed.
+  # Also re-run on direct edits to the dashboard, the refresh script, or this workflow.
   push:
     branches: [main]
     paths:
@@ -19,13 +19,17 @@ permissions:
   pages: write
   id-token: write
 
+# Only one Pages deployment can run at a time; don't cancel an in-progress refresh.
 concurrency:
-  group: dashboard-refresh
+  group: pages
   cancel-in-progress: false
 
 jobs:
-  refresh:
+  refresh-and-deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -45,7 +49,7 @@ jobs:
           DASHBOARD_HTML:   Task_Efficiency_Dashboard.html
         run: python3 refresh_from_metabase.py
 
-      - name: Commit & push refreshed HTML
+      - name: Commit refreshed HTML (audit trail)
         run: |
           git config user.name  'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -56,3 +60,21 @@ jobs:
             git commit -m "Auto-refresh: Metabase data $(date -u +'%Y-%m-%d %H:%M UTC')"
             git push
           fi
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v4
+
+      - name: Build _site folder
+        run: |
+          mkdir -p _site
+          cp Task_Efficiency_Dashboard.html _site/index.html
+          cp Task_Efficiency_Dashboard.html _site/Task_Efficiency_Dashboard.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site
+
+      - name: Deploy to Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
