@@ -409,10 +409,3 @@ with open(HTML_PATH, 'w', encoding='utf-8') as f:
     f.write(html)
 
 print(f'[refresh] Done. HTML now {len(html)/1024/1024:.2f} MB | last updated = {last_updated_str}', flush=True)
-n>', f'<span class="tv-range-text">{human_max}</span>', html)
-
-# Save
-with open(HTML_PATH, 'w', encoding='utf-8') as f:
-    f.write(html)
-
-print(f'[refresh] Done. HTML now {len(html)/1024/1024:.2f} MB | last updated = {last_updated_str}', flush=True)
