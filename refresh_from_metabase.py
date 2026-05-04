@@ -1,22 +1,20 @@
 #!/usr/bin/env python3
 """
-Refresh the Task Efficiency Dashboard from Metabase card 280 (trips data query).
+Refresh the Task Efficiency Dashboard by running the trips data query as a native
+MongoDB pipeline against Metabase's /api/dataset endpoint (bypasses card-level
+permissions; only needs native-query access on database 6).
 
 Reads:
   METABASE_URL           e.g. https://analytics.rentofurniture.com
   METABASE_API_KEY       Metabase API key (header: X-API-Key)
-  METABASE_CARD_ID       e.g. 280
+  METABASE_DATABASE_ID   Metabase database id for Delivery Tracker MongoDB (default: 6)
   DASHBOARD_HTML         path to Task_Efficiency_Dashboard.html (default: ./Task_Efficiency_Dashboard.html)
+  REFRESH_FROM_YMD       earliest scheduledDate to fetch (default: 4 months ago, 1st)
+  REFRESH_TO_YMD         exclusive upper bound on scheduledDate (default: tomorrow IST)
 
 Writes:
   Updated DASHBOARD_HTML in place with fresh RAW_EXCEL / PROCESSED_EXCEL_FULL / EXCL_ROWS_FULL,
   refreshed MIN/MAX_YMD, calDates pinned to today − 1, and "Last updated" timestamp.
-
-Usage (locally):
-  export METABASE_URL=https://analytics.rentofurniture.com
-  export METABASE_API_KEY=mb_xxx
-  export METABASE_CARD_ID=280
-  python3 refresh_from_metabase.py
 
 In CI: secrets are already injected by GitHub Actions.
 """
@@ -29,7 +27,7 @@ from urllib import request as urlreq, error as urlerr
 # ─────────────────────────────────────────────────────────────
 METABASE_URL  = os.environ.get('METABASE_URL', '').rstrip('/')
 API_KEY       = os.environ.get('METABASE_API_KEY', '')
-CARD_ID       = int(os.environ.get('METABASE_CARD_ID', '280'))
+DATABASE_ID   = int(os.environ.get('METABASE_DATABASE_ID', '6'))
 HTML_PATH     = os.environ.get('DASHBOARD_HTML', 'Task_Efficiency_Dashboard.html')
 
 if not METABASE_URL or not API_KEY:
@@ -74,7 +72,7 @@ def normalize_cell(v):
     if isinstance(v, str): return v.strip()
     return v
 
-def metabase_post(path, body=None, timeout=120):
+def metabase_post(path, body=None, timeout=300):
     """POST to Metabase with API key. Returns parsed JSON."""
     url = f'{METABASE_URL}{path}'
     data = json.dumps(body or {}).encode('utf-8')
@@ -85,16 +83,148 @@ def metabase_post(path, body=None, timeout=120):
         with urlreq.urlopen(req, timeout=timeout) as r:
             return json.loads(r.read().decode('utf-8'))
     except urlerr.HTTPError as e:
-        body = e.read().decode('utf-8', errors='replace')
-        print(f'ERROR: HTTP {e.code} from {url}\n{body}', file=sys.stderr)
+        err_body = e.read().decode('utf-8', errors='replace')
+        print(f'ERROR: HTTP {e.code} from {url}\n{err_body}', file=sys.stderr)
         raise
 
 # ─────────────────────────────────────────────────────────────
-# Fetch from Metabase
+# Build MongoDB native pipeline (mirrors saved card 280, with dynamic dates)
 # ─────────────────────────────────────────────────────────────
-print(f'[refresh] Querying Metabase card {CARD_ID} at {METABASE_URL} …', flush=True)
+today_ist = datetime.now(IST).date()
+
+# Window: 4 calendar months back (1st of that month) → tomorrow (so today's data is included)
+def _months_back_first(d, n):
+    y, m = d.year, d.month - n
+    while m <= 0: y -= 1; m += 12
+    return date(y, m, 1)
+
+from_ymd = os.environ.get('REFRESH_FROM_YMD') or _months_back_first(today_ist, 4).strftime('%Y-%m-%d')
+to_ymd   = os.environ.get('REFRESH_TO_YMD')   or (today_ist + timedelta(days=1)).strftime('%Y-%m-%d')
+print(f'[refresh] Date window: {from_ymd} (incl) → {to_ymd} (excl)', flush=True)
+
+PIPELINE = [
+    {"$sort": {"createdAt": -1}},
+    {"$addFields": {"softDeleteExists": {"$ifNull": ["$softDelete", False]}}},
+    {"$match": {"$expr": {"$cond": {
+        "if":   {"$eq": ["$softDeleteExists", True]},
+        "then": {"$eq": ["$softDelete", False]},
+        "else": True,
+    }}}},
+    {"$match": {"scheduledDate": {
+        "$gte": {"$date": f"{from_ymd}T00:00:00.000Z"},
+        "$lt":  {"$date": f"{to_ymd}T00:00:00.000Z"},
+    }}},
+    {"$lookup": {"from": "deliveries", "localField": "deliveryId", "foreignField": "_id", "as": "delivery"}},
+    {"$addFields": {"scheduledDateForMatch": {"$dateToString": {
+        "format": "%d-%m-%Y",
+        "date": {"$cond": {
+            "if": {"$and": [
+                {"$ne": ["$scheduledDate", None]},
+                {"$ne": [{"$type": "$scheduledDate"}, "string"]},
+            ]},
+            "then": {"$toDate": "$scheduledDate"},
+            "else": None,
+        }}
+    }}}},
+    {"$lookup": {
+        "from": "agenttrips",
+        "let": {"id": {"$toObjectId": "$agentId"}, "newDate": "$scheduledDateForMatch"},
+        "pipeline": [{"$match": {"$and": [
+            {"$expr": {"$eq": ["$agentId", "$$id"]}},
+            {"$expr": {"$eq": ["$date", "$$newDate"]}},
+        ]}}],
+        "as": "agentData",
+    }},
+    {"$unwind": {"path": "$agentData", "preserveNullAndEmptyArrays": True}},
+    {"$addFields": {"loginTime": "$agentData.startLoginTime", "logoutTime": "$agentData.endTiLogouTime"}},
+    {"$lookup": {"from": "users", "localField": "agentId", "foreignField": "_id", "as": "agent"}},
+    {"$match": {"delivery.createdAt": {"$exists": True, "$ne": None}}},
+    {"$project": {
+        "_id": 0,
+        "agentName":      {"$arrayElemAt": ["$agent.name", 0]},
+        "transportId":    1,
+        "doneDate":       1,
+        "caseId":         {"$arrayElemAt": ["$delivery.caseId", 0]},
+        "firstname":      {"$arrayElemAt": ["$delivery.firstName", 0]},
+        "lastname":       {"$arrayElemAt": ["$delivery.lastName", 0]},
+        "email":          {"$arrayElemAt": ["$delivery.email", 0]},
+        "subCategory":    {"$arrayElemAt": ["$delivery.subCategory", 0]},
+        "category":       {"$arrayElemAt": ["$delivery.category", 0]},
+        "caseUrl":        {"$arrayElemAt": ["$delivery.caseUrl", 0]},
+        "city":           {"$arrayElemAt": ["$delivery.city", 0]},
+        "invoiceUrl":     {"$arrayElemAt": ["$delivery.invoiceUrl", 0]},
+        "jobType":        {"$arrayElemAt": ["$delivery.jobType", 0]},
+        "orderId":        {"$arrayElemAt": ["$delivery.orderId", 0]},
+        "subject":        {"$arrayElemAt": ["$delivery.subject", 0]},
+        "ticketNumber":   {"$arrayElemAt": ["$delivery.ticketNumber", 0]},
+        "lob":            {"$arrayElemAt": ["$delivery.lob", 0]},
+        "adhoc_vehicle":  1,
+        "createdAt":      1,
+        "status":         1,
+        "scheduledDate":  1,
+        "Confirmation Status": {"$cond": {
+            "if": {"$anyElementTrue": {"$map": {
+                "input": "$delivery", "as": "del",
+                "in": {"$eq": ["$$del.deliveryConfirmStatus", True]},
+            }}},
+            "then": "Confirm",
+            "else": "No response",
+        }},
+        "deliveryDate":   {"$arrayElemAt": ["$delivery.createdAt", 0]},
+        "deliverDate":    {"$arrayElemAt": ["$delivery.deliverDate", 0]},
+        "startTrip":      {"$arrayElemAt": ["$delivery.startTrip", 0]},
+        "endTrip":        {"$arrayElemAt": ["$delivery.endTrip", 0]},
+        "rescheduledDate":{"$arrayElemAt": ["$delivery.rescheduledDate", 0]},
+        "loginTime": 1,
+        "logoutTime": 1,
+    }},
+    {"$project": {
+        "_id": 0,
+        "agentId":              "$agentID",
+        "Transport":            "$transportId",
+        "Status":               "$status",
+        "Case Addigned Date":   "$deliveryDate",
+        "Agent Name":           "$agentName",
+        "Case ID Number":       "$caseId",
+        "First Name":           "$firstname",
+        "Last Name ":           "$lastname",
+        "Email":                "$email",
+        "Sub Category":         "$subCategory",
+        "Category":             "$category",
+        "Case Url":             "$caseUrl",
+        "City":                 "$city",
+        "Invoice Url\t":        "$invoiceUrl",
+        "Job Type":             "$jobType",
+        "Order Id":             "$orderId",
+        "Subject":              "$subject",
+        "Ticket Number":        "$ticketNumber",
+        "Transition Date":      "$createdAt",
+        "Scheduled Date":       "$scheduledDate",
+        "Done Date":            "$doneDate",
+        "Adhoc Vehicle":        "$adhoc_vehicle",
+        "LOB":                  "$lob",
+        "End Trip Time":        "$endTrip",
+        "Start Trip Time":      "$startTrip",
+        "loginTime":            "$loginTime",
+        "logoutTime":           "$logoutTime",
+        "rescheduledDate":      "$rescheduledDate",
+        "Confirmation Status":  "$Confirmation Status",
+    }},
+]
+
+# ─────────────────────────────────────────────────────────────
+# Fetch from Metabase via /api/dataset (native MongoDB query)
+# ─────────────────────────────────────────────────────────────
+print(f'[refresh] Querying Metabase /api/dataset (db={DATABASE_ID}, collection=trips)…', flush=True)
 t0 = time.time()
-result = metabase_post(f'/api/card/{CARD_ID}/query', body={})
+result = metabase_post('/api/dataset', body={
+    'database': DATABASE_ID,
+    'type': 'native',
+    'native': {
+        'query': json.dumps(PIPELINE),
+        'collection': 'trips',
+    },
+})
 elapsed = time.time() - t0
 print(f'[refresh] Metabase responded in {elapsed:.1f}s', flush=True)
 
@@ -141,9 +271,8 @@ if missing:
     sys.exit(3)
 
 # ─────────────────────────────────────────────────────────────
-# Determine date window: today − 1 IST
+# Determine date window: today − 1 IST (for the dashboard's display window)
 # ─────────────────────────────────────────────────────────────
-today_ist     = datetime.now(IST).date()
 max_data_date = today_ist - timedelta(days=1)
 print(f'[refresh] Today (IST) = {today_ist}, max data date = {max_data_date}', flush=True)
 
