@@ -98,9 +98,9 @@ def _months_back_first(d, n):
     while m <= 0: y -= 1; m += 12
     return date(y, m, 1)
 
-from_ymd = os.environ.get('REFRESH_FROM_YMD') or _months_back_first(today_ist, 4).strftime('%Y-%m-%d')
-to_ymd   = os.environ.get('REFRESH_TO_YMD')   or (today_ist + timedelta(days=1)).strftime('%Y-%m-%d')
-print(f'[refresh] Date window: {from_ymd} (incl) → {to_ymd} (excl)', flush=True)
+date_from = os.environ.get('REFRESH_FROM_YMD') or _months_back_first(today_ist, 4).strftime('%Y-%m-%d')
+date_to   = os.environ.get('REFRESH_TO_YMD')   or (today_ist + timedelta(days=1)).strftime('%Y-%m-%d')
+print(f'[refresh] Date window: {date_from} (incl) → {date_to} (excl)', flush=True)
 
 PIPELINE = [
     {"$sort": {"createdAt": -1}},
@@ -111,8 +111,8 @@ PIPELINE = [
         "else": True,
     }}}},
     {"$match": {"scheduledDate": {
-        "$gte": {"$date": f"{from_ymd}T00:00:00.000Z"},
-        "$lt":  {"$date": f"{to_ymd}T00:00:00.000Z"},
+        "$gte": {"$date": f"{date_from}T00:00:00.000Z"},
+        "$lt":  {"$date": f"{date_to}T00:00:00.000Z"},
     }}},
     {"$lookup": {"from": "deliveries", "localField": "deliveryId", "foreignField": "_id", "as": "delivery"}},
     {"$addFields": {"scheduledDateForMatch": {"$dateToString": {
@@ -224,6 +224,9 @@ result = metabase_post('/api/dataset', body={
         'query': json.dumps(PIPELINE),
         'collection': 'trips',
     },
+    # Disable the userland 2000-row cap; we want all rows in the date window
+    'middleware': {'add-default-userland-constraints?': False, 'userland-query?': True},
+    'constraints': {'max-results': 1000000, 'max-results-bare-rows': 1000000},
 })
 elapsed = time.time() - t0
 print(f'[refresh] Metabase responded in {elapsed:.1f}s', flush=True)
@@ -400,6 +403,13 @@ human_max = max_dt.strftime('%b %-d, %Y') if hasattr(max_dt, 'strftime') else ne
 try: human_max = max_dt.strftime('%b %-d, %Y')
 except Exception: human_max = max_dt.strftime('%b %#d, %Y')
 html = re.sub(r'<span class="tv-range-text">[^<]+</span>', f'<span class="tv-range-text">{human_max}</span>', html)
+
+# Save
+with open(HTML_PATH, 'w', encoding='utf-8') as f:
+    f.write(html)
+
+print(f'[refresh] Done. HTML now {len(html)/1024/1024:.2f} MB | last updated = {last_updated_str}', flush=True)
+n>', f'<span class="tv-range-text">{human_max}</span>', html)
 
 # Save
 with open(HTML_PATH, 'w', encoding='utf-8') as f:
