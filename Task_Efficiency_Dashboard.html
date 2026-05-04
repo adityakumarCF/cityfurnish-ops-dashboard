@@ -1859,27 +1859,52 @@ function toggleReadme(){
 }
 
 // ====================== REFRESH NOW BUTTON ======================
-// EDIT THIS — set your repo's "Run workflow" URL once you create the GitHub repo.
-// Format:  https://github.com/<owner>/<repo>/actions/workflows/scheduled-refresh.yml
-window.GITHUB_ACTIONS_REFRESH_URL = 'https://github.com/adityakumarCF/cityfurnish-ops-dashboard/actions/workflows/scheduled-refresh.yml';
+// Calls a Cloudflare Worker that holds a GitHub PAT server-side.
+// The Worker triggers the refresh workflow and proxies polling for status.
+// No tokens in this page.
+window.WORKER_URL = 'https://cityfurnish-ops-dashboard.aditya-kumar-f81.workers.dev';
 
-function triggerRefresh(btn){
-  // Strategy:
-  // - Quick reload (default action) → gets latest 30-min cron output. Free, instant.
-  // - Force refresh from Metabase → opens GitHub Actions tab where you click "Run workflow".
-  //   (We can't trigger workflow_dispatch from the browser without leaking a GitHub token,
-  //    so this is the safest no-backend approach.)
-  var msg = "What would you like to do?\n\n"
-          + "OK   = Reload (gets latest auto-refreshed data; cron runs every 30 min)\n"
-          + "Cancel = Open GitHub Actions to force an immediate Metabase pull";
-  if (confirm(msg)) {
-    if (btn) { btn.innerHTML = '&#x21BB; Reloading…'; btn.disabled = true; }
-    // Cache-bust by appending a query param
-    var u = new URL(window.location.href);
-    u.searchParams.set('_r', Date.now());
-    window.location.href = u.toString();
-  } else {
-    window.open(window.GITHUB_ACTIONS_REFRESH_URL, '_blank', 'noopener,noreferrer');
+async function triggerRefresh(btn){
+  if (!btn) return;
+  const orig = btn.innerHTML;
+  const reset = (msg, ms) => { btn.innerHTML = msg; setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, ms || 4000); };
+  btn.disabled = true;
+
+  if (!window.WORKER_URL || window.WORKER_URL.startsWith('PASTE_')) {
+    reset('&#9888; Worker URL not set');
+    return;
+  }
+
+  const dispatchTime = Date.now() - 5000;
+  try {
+    btn.innerHTML = '&#x21BB; Triggering…';
+    const r = await fetch(window.WORKER_URL, { method: 'POST' });
+    if (!r.ok) throw new Error(`Trigger HTTP ${r.status}: ${(await r.text()).slice(0,140)}`);
+
+    btn.innerHTML = '&#x21BB; Pulling Metabase…';
+    const start = Date.now();
+    const TIMEOUT_MS = 5 * 60 * 1000;
+    const POLL_MS = 7000;
+
+    while (Date.now() - start < TIMEOUT_MS) {
+      await new Promise(res => setTimeout(res, POLL_MS));
+      const rr = await fetch(`${window.WORKER_URL}?since=${dispatchTime}`);
+      if (!rr.ok) continue;
+      const d = await rr.json();
+      if (d.status === 'pending' || !d.status) { btn.innerHTML = '&#x21BB; Waiting for run…'; continue; }
+      if (d.status !== 'completed') { btn.innerHTML = `&#x21BB; ${d.status}…`; continue; }
+      if (d.conclusion !== 'success') throw new Error(`Run ended: ${d.conclusion}`);
+      btn.innerHTML = '&#10003; Done — reloading';
+      await new Promise(res => setTimeout(res, 1500));
+      const u = new URL(window.location.href);
+      u.searchParams.set('_r', Date.now());
+      window.location.href = u.toString();
+      return;
+    }
+    throw new Error('Timed out after 5 min');
+  } catch (e) {
+    console.error('refresh failed:', e);
+    reset('&#10005; ' + (e.message || 'Error'), 6000);
   }
 }
 document.getElementById('readme-modal').addEventListener('click',function(e){if(e.target===this)toggleReadme();});
