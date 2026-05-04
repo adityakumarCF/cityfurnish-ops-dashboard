@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CityFurnish Dashboard — More Light UI Options</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=DM+Sans:wght@400;500;600;700&family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#f4f5f7;font-family:'Inter',system-ui,sans-serif;color:#0f172a;-webkit-font-smoothing:antialiased;min-height:100vh}
+
+  .page-hero{max-width:1280px;margin:0 auto;padding:56px 28px 12px}
+  .page-hero .badge{display:inline-block;padding:5px 12px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);color:#059669;font-size:11px;font-weight:600;border-radius:100px;margin-bottom:14px;letter-spacing:0.3px}
+  .page-hero h1{font-size:36px;font-weight:700;letter-spacing:-0.8px;color:#0f172a;line-height:1.1;margin-bottom:12px}
+  .page-hero p{color:#64748b;font-size:15px;line-height:1.6;max-width:760px}
+
+  .option{max-width:1280px;margin:40px auto;border-radius:24px;overflow:hidden;position:relative;background:#fff;box-shadow:0 2px 4px rgba(15,23,42,0.04),0 24px 48px -12px rgba(15,23,42,0.08);border:1px solid rgba(15,23,42,0.06)}
+  .option-meta{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:22px 28px;background:#fafbfc;border-bottom:1px dashed rgba(15,23,42,0.08)}
+  .option-meta .tag{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;padding:4px 10px;border-radius:100px;margin-bottom:8px}
+  .option-meta h2{margin:0 0 6px;font-size:20px;font-weight:700;color:#0f172a;letter-spacing:-0.3px}
+  .option-meta .desc{margin:0;font-size:13px;color:#64748b;max-width:760px;line-height:1.6}
+  .option-meta .desc b{color:#0f172a;font-weight:600}
+  .option-meta .pill{font-size:11px;font-weight:600;color:#475569;background:#fff;padding:6px 12px;border-radius:100px;white-space:nowrap;border:1px solid rgba(15,23,42,0.1)}
+
+  /* ============== OPTION E — SIDEBAR COMMAND CENTER (STRIPE/ATTIO) ============== */
+  .optE .tag{background:rgba(99,102,241,0.1);color:#4f46e5}
+  .sampleE{font-family:'Inter',sans-serif;background:#fafbfc;display:grid;grid-template-columns:200px 1fr;min-height:560px}
+  .sampleE .sidebar{background:#fff;border-right:1px solid rgba(15,23,42,0.06);padding:20px 14px}
+  .sampleE .sidebar .logo-row{display:flex;align-items:center;gap:10px;padding:0 10px 20px;margin-bottom:14px;border-bottom:1px solid rgba(15,23,42,0.06)}
+  .sampleE .sidebar .logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px}
+  .sampleE .sidebar .name{font-size:13px;font-weight:700;color:#0f172a}
+  .sampleE .sidebar .sub{font-size:10px;color:#94a3b8}
+  .sampleE .sidebar .group-label{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.6px;font-weight:600;padding:8px 10px 6px}
+  .sampleE .sidebar a{display:flex;align-items:center;gap:10px;padding:8px 10px;font-size:13px;color:#475569;border-radius:8px;text-decoration:none;font-weight:500;margin-bottom:2px}
+  .sampleE .sidebar a:hover{background:#f1f5f9;color:#0f172a}
+  .sampleE .sidebar a.active{background:#0f172a;color:#fff}
+  .sampleE .sidebar a .ico{width:16px;height:16px;display:inline-block;background:currentColor;mask:radial-gradient(circle,#000 3px,transparent 4px);-webkit-mask:radial-gradient(circle,#000 3px,transparent 4px);opacity:0.7}
+  .sampleE .sidebar a .ico.s1{mask:linear-gradient(#000,#000);-webkit-mask:linear-gradient(#000,#000);border-radius:3px;opacity:1;background:currentColor;width:14px;height:14px;display:inline-block}
+  .sampleE .main{padding:22px 26px}
+  .sampleE .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid rgba(15,23,42,0.06)}
+  .sampleE .topbar .crumb{font-size:12px;color:#94a3b8}
+  .sampleE .topbar .crumb b{color:#0f172a;font-weight:600}
+  .sampleE .topbar h2{font-size:20px;font-weight:700;color:#0f172a;letter-spacing:-0.4px;margin-top:4px}
+  .sampleE .topbar .right{display:flex;gap:8px}
+  .sampleE .topbar .btn{padding:7px 14px;background:#fff;border:1px solid rgba(15,23,42,0.12);border-radius:8px;font-size:12px;font-weight:500;color:#0f172a;cursor:pointer;box-shadow:0 1px 2px rgba(15,23,42,0.04)}
+  .sampleE .topbar .btn.primary{background:#4f46e5;color:#fff;border-color:#4f46e5}
+  .sampleE .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+  .sampleE .kpi{background:#fff;border:1px solid rgba(15,23,42,0.06);border-radius:10px;padding:16px 18px;box-shadow:0 1px 2px rgba(15,23,42,0.03)}
+  .sampleE .kpi .lbl{font-size:11px;color:#64748b;font-weight:500}
+  .sampleE .kpi .val{font-size:26px;font-weight:700;color:#0f172a;margin-top:6px;letter-spacing:-0.6px;line-height:1}
+  .sampleE .kpi .delta{font-size:11px;margin-top:6px;color:#64748b}
+  .sampleE .kpi .delta .up{color:#059669;font-weight:600}
+  .sampleE .kpi .delta .down{color:#dc2626;font-weight:600}
+  .sampleE .grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:14px}
+  .sampleE .panel{background:#fff;border:1px solid rgba(15,23,42,0.06);border-radius:10px;padding:18px 20px;box-shadow:0 1px 2px rgba(15,23,42,0.03)}
+  .sampleE .panel h3{font-size:12px;font-weight:600;color:#0f172a;margin-bottom:3px}
+  .sampleE .panel .muted{font-size:10px;color:#94a3b8;margin-bottom:16px}
+  .sampleE .chart{display:flex;align-items:flex-end;gap:18px;height:150px;padding-top:10px}
+  .sampleE .chart .grp{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px}
+  .sampleE .chart .bars{display:flex;align-items:flex-end;gap:3px;height:130px;width:100%;justify-content:center}
+  .sampleE .chart .b{width:12px;background:#6366f1;border-radius:2px 2px 0 0}
+  .sampleE .chart .b.d{background:#8b5cf6}
+  .sampleE .chart .b.e{background:#06b6d4}
+  .sampleE .chart .lbl{font-size:10px;color:#94a3b8;font-weight:500}
+  .sampleE .legend{display:flex;gap:14px;font-size:10px;color:#64748b;margin-top:12px}
+  .sampleE .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+  .sampleE table{width:100%;border-collapse:collapse;font-size:11px;margin-top:10px}
+  .sampleE th{text-align:left;padding:8px 0;color:#94a3b8;font-weight:500;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid rgba(15,23,42,0.06)}
+  .sampleE td{padding:9px 0;color:#0f172a;border-bottom:1px solid rgba(15,23,42,0.04)}
+  .sampleE tr:last-child td{border-bottom:none}
+  .sampleE .chip{display:inline-block;padding:2px 7px;border-radius:100px;font-size:9px;font-weight:600}
+  .sampleE .chip.ok{background:rgba(16,185,129,0.1);color:#059669}
+  .sampleE .chip.bad{background:rgba(239,68,68,0.1);color:#dc2626}
+
+  /* ============== OPTION F — WARM NEUTRAL EDITORIAL ============== */
+  .optF .tag{background:rgba(217,119,6,0.1);color:#b45309}
+  .sampleF{font-family:'DM Sans',sans-serif;background:#faf7f2;padding:28px;color:#1c1917}
+  .sampleF .hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding-bottom:18px;border-bottom:1px solid #e7e2d8}
+  .sampleF .hdr .brand{display:flex;align-items:center;gap:14px}
+  .sampleF .hdr .logo{width:40px;height:40px;border-radius:50%;background:#1c1917;display:flex;align-items:center;justify-content:center;color:#faf7f2;font-weight:700;font-size:14px;letter-spacing:-0.3px}
+  .sampleF .hdr .name{font-size:16px;font-weight:700;color:#1c1917;letter-spacing:-0.3px}
+  .sampleF .hdr .sub{font-size:11px;color:#78716c;margin-top:2px}
+  .sampleF .hdr .nav{display:flex;gap:4px;background:#f3ede0;padding:4px;border-radius:100px;border:1px solid #e7e2d8}
+  .sampleF .hdr .nav span{padding:7px 16px;font-size:12px;font-weight:600;color:#78716c;border-radius:100px;cursor:pointer}
+  .sampleF .hdr .nav span.active{background:#1c1917;color:#faf7f2}
+  .sampleF .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+  .sampleF .kpi{background:#fff;border-radius:16px;padding:20px 22px;border:1px solid #e7e2d8;position:relative;overflow:hidden}
+  .sampleF .kpi::before{content:"";position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:50%;background:#f3ede0;opacity:0.7}
+  .sampleF .kpi .lbl{font-size:11px;color:#78716c;font-weight:500;letter-spacing:0.3px}
+  .sampleF .kpi .val{font-size:32px;font-weight:700;color:#1c1917;margin-top:8px;letter-spacing:-1px;line-height:1;position:relative}
+  .sampleF .kpi .delta{font-size:11px;margin-top:10px;color:#78716c;font-weight:500;display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:100px;background:#f3ede0}
+  .sampleF .kpi .delta.up{background:#e0f2ea;color:#047857}
+  .sampleF .kpi .delta.down{background:#fde8e4;color:#b91c1c}
+  .sampleF .kpi .delta.warn{background:#fef3c7;color:#b45309}
+  .sampleF .grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
+  .sampleF .panel{background:#fff;border-radius:16px;padding:22px 24px;border:1px solid #e7e2d8}
+  .sampleF .panel h3{font-size:14px;font-weight:700;color:#1c1917;margin-bottom:3px;letter-spacing:-0.2px}
+  .sampleF .panel .muted{font-size:11px;color:#78716c;margin-bottom:18px}
+  .sampleF .chart{display:flex;align-items:flex-end;gap:22px;height:170px;padding-top:10px}
+  .sampleF .chart .grp{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px}
+  .sampleF .chart .bars{display:flex;align-items:flex-end;gap:4px;height:150px;width:100%;justify-content:center}
+  .sampleF .chart .b{width:13px;background:#1c1917;border-radius:3px 3px 0 0}
+  .sampleF .chart .b.d{background:#b45309}
+  .sampleF .chart .b.e{background:#78716c}
+  .sampleF .chart .lbl{font-size:11px;color:#78716c;font-weight:600}
+  .sampleF .legend{display:flex;gap:18px;font-size:11px;color:#78716c;margin-top:14px;font-weight:500}
+  .sampleF .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  .sampleF table{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px}
+  .sampleF th{text-align:left;padding:10px 0;color:#78716c;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:0.6px;border-bottom:1px solid #e7e2d8}
+  .sampleF td{padding:12px 0;color:#1c1917;border-bottom:1px solid #f3ede0;font-weight:500}
+  .sampleF tr:last-child td{border-bottom:none}
+  .sampleF .chip{display:inline-block;padding:3px 10px;border-radius:100px;font-size:10px;font-weight:600}
+  .sampleF .chip.ok{background:#e0f2ea;color:#047857}
+  .sampleF .chip.bad{background:#fde8e4;color:#b91c1c}
+
+  /* ============== OPTION G — VIBRANT GRADIENT KPIS (STRIPE DASHBOARD) ============== */
+  .optG .tag{background:rgba(236,72,153,0.1);color:#db2777}
+  .sampleG{font-family:'Geist','Inter',sans-serif;background:#fff;padding:28px}
+  .sampleG .hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
+  .sampleG .hdr .brand{display:flex;align-items:center;gap:12px}
+  .sampleG .hdr .logo{width:32px;height:32px;border-radius:8px;background:#0f172a;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px}
+  .sampleG .hdr .name{font-size:15px;font-weight:700;color:#0f172a;letter-spacing:-0.3px}
+  .sampleG .hdr .sub{font-size:11px;color:#94a3b8}
+  .sampleG .hdr .nav{display:flex;gap:0;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden}
+  .sampleG .hdr .nav span{padding:8px 14px;font-size:12px;font-weight:500;color:#64748b;cursor:pointer;border-right:1px solid #e5e7eb}
+  .sampleG .hdr .nav span:last-child{border-right:none}
+  .sampleG .hdr .nav span.active{background:#0f172a;color:#fff}
+  .sampleG .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+  .sampleG .kpi{border-radius:16px;padding:22px 24px;position:relative;overflow:hidden;border:1px solid rgba(15,23,42,0.06);min-height:130px}
+  .sampleG .kpi.k1{background:linear-gradient(135deg,#eff6ff 0%,#dbeafe 60%,#bfdbfe 100%)}
+  .sampleG .kpi.k2{background:linear-gradient(135deg,#ecfdf5 0%,#d1fae5 60%,#a7f3d0 100%)}
+  .sampleG .kpi.k3{background:linear-gradient(135deg,#fef3c7 0%,#fde68a 60%,#fcd34d 100%)}
+  .sampleG .kpi.k4{background:linear-gradient(135deg,#fce7f3 0%,#fbcfe8 60%,#f9a8d4 100%)}
+  .sampleG .kpi .lbl{font-size:11px;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:0.4px}
+  .sampleG .kpi .val{font-size:34px;font-weight:700;color:#0f172a;margin-top:10px;letter-spacing:-1.2px;line-height:1}
+  .sampleG .kpi .delta{font-size:11px;margin-top:10px;color:#0f172a;font-weight:600;display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:100px;background:rgba(255,255,255,0.65);backdrop-filter:blur(6px)}
+  .sampleG .grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:14px}
+  .sampleG .panel{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:22px;box-shadow:0 1px 3px rgba(15,23,42,0.04)}
+  .sampleG .panel h3{font-size:13px;font-weight:700;color:#0f172a;margin-bottom:2px}
+  .sampleG .panel .muted{font-size:11px;color:#94a3b8;margin-bottom:16px}
+  .sampleG .chart{display:flex;align-items:flex-end;gap:22px;height:170px;padding:8px 2px 0}
+  .sampleG .chart .grp{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px}
+  .sampleG .chart .bars{display:flex;align-items:flex-end;gap:3px;height:150px;width:100%;justify-content:center}
+  .sampleG .chart .b{width:13px;background:linear-gradient(180deg,#60a5fa,#2563eb);border-radius:3px 3px 0 0}
+  .sampleG .chart .b.d{background:linear-gradient(180deg,#f472b6,#db2777)}
+  .sampleG .chart .b.e{background:linear-gradient(180deg,#34d399,#059669)}
+  .sampleG .chart .lbl{font-size:10px;color:#94a3b8;font-weight:500}
+  .sampleG .legend{display:flex;gap:16px;font-size:11px;color:#64748b;margin-top:14px}
+  .sampleG .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  .sampleG table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}
+  .sampleG th{text-align:left;padding:10px 0;color:#94a3b8;font-weight:500;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e5e7eb}
+  .sampleG td{padding:12px 0;color:#0f172a;border-bottom:1px solid #f1f5f9}
+  .sampleG tr:last-child td{border-bottom:none}
+  .sampleG .chip{display:inline-block;padding:2px 9px;border-radius:100px;font-size:10px;font-weight:600}
+  .sampleG .chip.ok{background:#d1fae5;color:#047857}
+  .sampleG .chip.bad{background:#fecaca;color:#b91c1c}
+
+  /* ============== OPTION H — GRAFANA-LITE DATA OPS ============== */
+  .optH .tag{background:rgba(239,68,68,0.1);color:#dc2626}
+  .sampleH{font-family:'Inter',sans-serif;background:#f8fafc;padding:0;color:#0f172a}
+  .sampleH .hdr{background:#fff;border-bottom:1px solid #e2e8f0;padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
+  .sampleH .hdr .brand{display:flex;align-items:center;gap:10px}
+  .sampleH .hdr .logo{width:24px;height:24px;border-radius:5px;background:#dc2626;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:11px}
+  .sampleH .hdr .name{font-size:13px;font-weight:700;color:#0f172a}
+  .sampleH .hdr .crumb{font-size:12px;color:#64748b;margin-left:10px;padding-left:10px;border-left:1px solid #e2e8f0}
+  .sampleH .hdr .crumb b{color:#0f172a;font-weight:600}
+  .sampleH .hdr .controls{display:flex;gap:6px;align-items:center;font-size:11px;color:#64748b}
+  .sampleH .hdr .controls .btn{padding:5px 10px;background:#fff;border:1px solid #e2e8f0;border-radius:5px;font-size:11px;color:#334155;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace}
+  .sampleH .hdr .controls .btn.primary{background:#dc2626;color:#fff;border-color:#dc2626}
+  .sampleH .hdr .controls .dot{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,0.2)}
+  .sampleH .subbar{background:#fff;padding:10px 24px;border-bottom:1px solid #e2e8f0;font-size:11px;color:#64748b;display:flex;gap:20px;font-family:'JetBrains Mono',monospace}
+  .sampleH .subbar span b{color:#0f172a;font-weight:600}
+  .sampleH .body{padding:16px 18px}
+  .sampleH .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:10px}
+  .sampleH .kpi{background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:12px 14px;border-top:3px solid #dc2626}
+  .sampleH .kpi.c1{border-top-color:#3b82f6}
+  .sampleH .kpi.c2{border-top-color:#22c55e}
+  .sampleH .kpi.c3{border-top-color:#f59e0b}
+  .sampleH .kpi.c4{border-top-color:#ef4444}
+  .sampleH .kpi.c5{border-top-color:#8b5cf6}
+  .sampleH .kpi.c6{border-top-color:#06b6d4}
+  .sampleH .kpi .lbl{font-size:10px;color:#64748b;font-weight:500;text-transform:uppercase;letter-spacing:0.4px;font-family:'JetBrains Mono',monospace}
+  .sampleH .kpi .val{font-size:20px;font-weight:700;color:#0f172a;margin-top:4px;letter-spacing:-0.4px;line-height:1;font-family:'JetBrains Mono',monospace}
+  .sampleH .kpi .delta{font-size:10px;margin-top:3px;color:#64748b;font-family:'JetBrains Mono',monospace}
+  .sampleH .kpi .delta .up{color:#059669;font-weight:600}
+  .sampleH .kpi .delta .down{color:#dc2626;font-weight:600}
+  .sampleH .grid{display:grid;grid-template-columns:1.4fr 1fr;gap:8px;margin-top:8px}
+  .sampleH .panel{background:#fff;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden}
+  .sampleH .panel .ptitle{padding:10px 14px;border-bottom:1px solid #e2e8f0;font-size:11px;color:#0f172a;font-weight:600;display:flex;align-items:center;justify-content:space-between;background:#fafbfc}
+  .sampleH .panel .ptitle .fam{font-family:'JetBrains Mono',monospace;color:#94a3b8;font-weight:400;font-size:10px}
+  .sampleH .panel .pbody{padding:14px 16px}
+  .sampleH .chart{display:flex;align-items:flex-end;gap:16px;height:150px;padding-top:10px;border-bottom:1px solid #e2e8f0}
+  .sampleH .chart .grp{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px}
+  .sampleH .chart .bars{display:flex;align-items:flex-end;gap:3px;height:130px;width:100%;justify-content:center}
+  .sampleH .chart .b{width:12px;background:#3b82f6}
+  .sampleH .chart .b.d{background:#22c55e}
+  .sampleH .chart .b.e{background:#f59e0b}
+  .sampleH .chart .lbl{font-size:10px;color:#64748b;font-weight:500;font-family:'JetBrains Mono',monospace}
+  .sampleH .legend{display:flex;gap:14px;font-size:10px;color:#64748b;padding:10px 0 0;font-family:'JetBrains Mono',monospace}
+  .sampleH .legend i{display:inline-block;width:10px;height:10px;margin-right:5px;vertical-align:-1px}
+  .sampleH table{width:100%;border-collapse:collapse;font-size:11px}
+  .sampleH th{text-align:left;padding:8px 12px;color:#64748b;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;background:#fafbfc;border-bottom:1px solid #e2e8f0;font-family:'JetBrains Mono',monospace}
+  .sampleH td{padding:10px 12px;color:#0f172a;border-bottom:1px solid #f1f5f9;font-family:'JetBrains Mono',monospace}
+  .sampleH tr:last-child td{border-bottom:none}
+  .sampleH tr:hover td{background:#fafbfc}
+  .sampleH .chip{display:inline-block;padding:2px 7px;border-radius:3px;font-size:9px;font-weight:700;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:0.3px}
+  .sampleH .chip.ok{background:#dcfce7;color:#15803d;border:1px solid #86efac}
+  .sampleH .chip.bad{background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5}
+
+  /* ============== PICKER ============== */
+  .picker{max-width:1280px;margin:40px auto 60px;padding:28px;background:#fff;border:1px solid rgba(15,23,42,0.06);border-radius:24px;box-shadow:0 2px 4px rgba(15,23,42,0.04),0 24px 48px -12px rgba(15,23,42,0.08)}
+  .picker h3{margin:0 0 16px;font-size:17px;font-weight:700;color:#0f172a;letter-spacing:-0.3px}
+  .picker table{width:100%;border-collapse:collapse;font-size:13px}
+  .picker th{text-align:left;padding:12px 14px;background:#fafbfc;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.6px;border-bottom:1px solid rgba(15,23,42,0.08)}
+  .picker td{padding:14px;border-bottom:1px solid rgba(15,23,42,0.04);color:#334155;vertical-align:top;line-height:1.55}
+  .picker td:first-child{font-weight:700;color:#0f172a;white-space:nowrap}
+  .picker .note{margin-top:18px;padding:14px 18px;font-size:12px;color:#475569;line-height:1.65;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.18);border-radius:12px}
+  .picker .note b{color:#059669}
+</style>
+</head>
+<body>
+
+<div class="page-hero">
+  <span class="badge">✦ More Modern Light · Round 2</span>
+  <h1>More Light-Mode Options</h1>
+  <p>Four fresh directions exploring different layouts and moods — sidebar nav, warm neutral editorial, vibrant gradient KPI cards, and a dense Grafana-style ops view. Each is distinct from the previous set.</p>
+</div>
+
+<!-- ============================= OPTION E ============================= -->
+<div class="option optE">
+  <div class="option-meta">
+    <div>
+      <span class="tag">Option E</span>
+      <h2>Sidebar Command Center</h2>
+      <p class="desc"><b>Left-sidebar navigation</b> with icon links, top breadcrumb bar, compact dense KPI row, indigo accents. Inspired by Stripe, Attio, Retool. Gives you a proper "app" feel with persistent nav and more real estate for content. Scales well as you add more reports.</p>
+    </div>
+    <span class="pill">Sidebar · App-like</span>
+  </div>
+  <div class="sample sampleE">
+    <div class="sidebar">
+      <div class="logo-row"><div class="logo">CF</div><div><div class="name">CityFurnish</div><div class="sub">Operations</div></div></div>
+      <div class="group-label">REPORTS</div>
+      <a href="#" class="active"><span class="ico s1"></span>Task Efficiency</a>
+      <a href="#"><span class="ico s1"></span>FAD</a>
+      <a href="#"><span class="ico s1"></span>FSD</a>
+      <a href="#"><span class="ico s1"></span>TAT</a>
+      <a href="#"><span class="ico s1"></span>Trip Efficiency</a>
+      <div class="group-label">TOOLS</div>
+      <a href="#"><span class="ico s1"></span>Exports</a>
+      <a href="#"><span class="ico s1"></span>Settings</a>
+    </div>
+    <div class="main">
+      <div class="topbar">
+        <div><div class="crumb">Reports · <b>Task Efficiency</b></div><h2>Task Efficiency · Week 14</h2></div>
+        <div class="right"><button class="btn">Export CSV</button><button class="btn primary">Refresh</button></div>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><div class="lbl">Total Tasks</div><div class="val">1,248</div><div class="delta"><span class="up">+4.7%</span> vs prev</div></div>
+        <div class="kpi"><div class="lbl">Done %</div><div class="val">92.4%</div><div class="delta"><span class="up">+2.1 pp</span></div></div>
+        <div class="kpi"><div class="lbl">Adhoc Mix</div><div class="val">18%</div><div class="delta">Target ≤15%</div></div>
+        <div class="kpi"><div class="lbl">Cancelled</div><div class="val">47</div><div class="delta"><span class="down">+9</span></div></div>
+      </div>
+      <div class="grid2">
+        <div class="panel">
+          <h3>Done % by category &amp; city</h3>
+          <div class="muted">Grouped bar · top 4 metros</div>
+          <div class="chart">
+            <div class="grp"><div class="bars"><div class="b" style="height:86%"></div><div class="b d" style="height:92%"></div><div class="b e" style="height:78%"></div></div><div class="lbl">Bangalore</div></div>
+            <div class="grp"><div class="bars"><div class="b" style="height:74%"></div><div class="b d" style="height:81%"></div><div class="b e" style="height:69%"></div></div><div class="lbl">Delhi</div></div>
+            <div class="grp"><div class="bars"><div class="b" style="height:95%"></div><div class="b d" style="height:98%"></div><div class="b e" style="height:92%"></div></div><div class="lbl">Hyderabad</div></div>
+            <div class="grp"><div class="bars"><div class="b" style="height:82%"></div><div class="b d" style="height:88%"></div><div class="b e" style="height:76%"></div></div><div class="lbl">Mumbai</div></div>
+          </div>
+          <div class="legend"><span><i style="background:#6366f1"></i>Delivery</span><span><i style="background:#8b5cf6"></i>Pickup</span><span><i style="background:#06b6d4"></i>Service</span></div>
+        </div>
+        <div class="panel">
+          <h3>City breakdown</h3>
+          <div class="muted">Sorted by Done %</div>
+          <table>
+            <thead><tr><th>City</th><th>Done %</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td>Hyderabad</td><td>95.1%</td><td><span class="chip ok">On track</span></td></tr>
+              <tr><td>Bangalore</td><td>85.3%</td><td><span class="chip ok">On track</span></td></tr>
+              <tr><td>Mumbai</td><td>82.0%</td><td><span class="chip ok">On track</span></td></tr>
+              <tr><td>Pune</td><td>79.4%</td><td><span class="chip bad">Below</span></td></tr>
+              <tr><td>Delhi</td><td>74.7%</td><td><span class="chip bad">Below</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================= OPTION F ============================= -->
+<div class="option optF">
+  <div class="option-meta">
+    <div>
+      <span class="tag">Option F</span>
+      <h2>Warm Neutral Editorial</h2>
+      <p class="desc">Warm cream canvas, sophisticated clay &amp; charcoal palette, DM Sans, circular logo, pill navigation. Inspired by Basecamp, Klarna, and editorial product sites. <b>Luxe and calm — feels hand-crafted rather than templated</b>. Less corporate, more curated.</p>
+    </div>
+    <span class="pill">Cream · Luxe · Editorial</span>
+  </div>
+  <div class="sample sampleF">
+    <div class="hdr">
+      <div class="brand"><div class="logo">CF</div><div><div class="name">CityFurnish Ops</div><div class="sub">Week 14 · April 10, 2026</div></div></div>
+      <div class="nav"><span class="active">Task</span><span>FAD</span><span>FSD</span><span>TAT</span><span>Trip</span></div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><div class="lbl">TOTAL TASKS</div><div class="val">1,248</div><div class="delta up">↑ 4.7% WoW</div></div>
+      <div class="kpi"><div class="lbl">DONE %</div><div class="val">92.4%</div><div class="delta up">↑ 2.1 pp</div></div>
+      <div class="kpi"><div class="lbl">ADHOC MIX</div><div class="val">18%</div><div class="delta warn">Target ≤15%</div></div>
+      <div class="kpi"><div class="lbl">CANCELLED</div><div class="val">47</div><div class="delta down">↑ 9 vs LW</div></div>
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <h3>Done % by Category &amp; City</h3>
+        <div class="muted">Grouped view · top 4 metros</div>
+        <div class="chart">
+          <div class="grp"><div class="bars"><div class="b" style="height:86%"></div><div class="b d" style="height:92%"></div><div class="b e" style="height:78%"></div></div><div class="lbl">Bangalore</div></div>
+          <div class="grp"><div class="bars"><div class="b" style="height:74%"></div><div class="b d" style="height:81%"></div><div class="b e" style="height:69%"></div></div><div class="lbl">Delhi</div></div>
+          <div class="grp"><div class="bars"><div class="b" style="height:95%"></div><div class="b d" style="height:98%"></div><div class="b e" style="height:92%"></div></div><div class="lbl">Hyderabad</div></div>
+          <div class="grp"><div class="bars"><div class="b" style="height:82%"></div><div class="b d" style="height:88%"></div><div class="b e" style="height:76%"></div></div><div class="lbl">Mumbai</div></div>
+        </div>
+        <div class="legend"><span><i style="background:#1c1917"></i>Delivery</span><span><i style="background:#b45309"></i>Pickup</span><span><i style="background:#78716c"></i>Service</span></div>
+      </div>
+      <div class="panel">
+        <h3>City Breakdown</h3>
+        <div class="muted">Top 5 cities</div>
+        <table>
+          <thead><tr><th>City</th><th>Done %</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Bangalore</td><td>85.3%</td><td><span class="chip ok">On track</span></td></tr>
+            <tr><td>Delhi</td><td>74.7%</td><td><span class="chip bad">Below</span></td></tr>
+            <tr><td>Hyderabad</td><td>95.1%</td><td><span class="chip ok">On track</span></td></tr>
+            <tr><td>Mumbai</td><td>82.0%</td><td><span class="chip ok">On track</span></td></tr>
+            <tr><td>Pune</td><td>79.4%</td><td><span class="chip bad">Below</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================= OPTION G ============================= -->
+<div class="option optG">
+  <div class="option-meta">
+    <div>
+      <span class="tag">Option G</span>
+      <h2>Vibrant Gradient KPIs</h2>
+      <p class="desc">Pure white canvas, Geist font, but <b>each KPI card has its own pastel gradient fill</b> (blue, green, amber, pink) — the Stripe Dashboard / Cash App move. Chart panels stay clean white with 1px borders, so the colour lives in the KPI row. Colourful but grown-up.</p>
+    </div>
+    <span class="pill">Gradient KPIs · Stripe-like</span>
+  </div>
+  <div class="sample sampleG">
+    <div class="hdr">
+      <div class="brand"><div class="logo">CF</div><div><div class="name">CityFurnish</div><div class="sub">Operations · Week 14, 2026</div></div></div>
+      <div class="nav"><span class="active">Task</span><span>FAD</span><span>FSD</span><span>TAT</span><span>Trip</span></div>
+    </div>
+    <div class="kpis">
+      <div class="kpi k1"><div class="lbl">Total Tasks</div><div class="val">1,248</div><div class="delta">↑ 4.7% WoW</div></div>
+      <div class="kpi k2"><div class="lbl">Done %</div><div class="val">92.4%</div><div class="delta">↑ 2.1 pp</div></div>
+      <div class="kpi k3"><div class="lbl">Adhoc Mix</div><div class="val">18%</div><div class="delta">Target ≤15%</div></div>
+      <div class="kpi k4"><div class="lbl">Cancelled</div><div class="val">47</div><div class="delta">↑ 9 vs LW</div></div>
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <h3>Done % by Category &amp; City</h3>
+        <div class="muted">Grouped bar · top 4 metros</div>
+        <div class="chart">
+          <div class="grp"><div class="bars"><div class="b" style="height:86%"></div><div class="b d" style="height:92%"></div><div class="b e" style="height:78%"></div></div><div class="lbl">Bangalore</div></div>
+          <div class="grp"><div class="bars"><div class="b" style="height:74%"></div><div class="b d" style="height:81%"></div><div class="b e" style="height:69%"></div></div><div class="lbl">Delhi</div></div>
+          <div class="grp"><div class="bars"><div class="b" style="height:95%"></div><div class="b d" style="height:98%"></div><div class="b e" style="height:92%"></div></div><div class="lbl">Hyderabad</div></div>
+          <div class="grp"><div class="bars"><div class="b" style="height:82%"></div><div class="b d" style="height:88%"></div><div class="b e" style="height:76%"></div></div><div class="lbl">Mumbai</div></div>
+        </div>
+        <div class="legend"><span><i style="background:#2563eb"></i>Delivery</span><span><i style="background:#db2777"></i>Pickup</span><span><i style="background:#059669"></i>Service</span></div>
+      </div>
+      <div class="panel">
+        <h3>City Breakdown</h3>
+        <div class="muted">Top 5 cities</div>
+        <table>
+          <thead><tr><th>City</th><th>Done %</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Bangalore</td><td>85.3%</td><td><span class="chip ok">On track</span></td></tr>
+            <tr><td>Delhi</td><td>74.7%</td><td><span class="chip bad">Below</span></td></tr>
+            <tr><td>Hyderabad</td><td>95.1%</td><td><span class="chip ok">On track</span></td></tr>
+            <tr><td>Mumbai</td><td>82.0%</td><td><span class="chip ok">On track</span></td></tr>
+            <tr><td>Pune</td><td>79.4%</td><td><span class="chip bad">Below</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================= OPTION H ============================= -->
+<div class="option optH">
+  <div class="option-meta">
+    <div>
+      <span class="tag">Option H</span>
+      <h2>Grafana-Lite Data Ops</h2>
+      <p class="desc">Dense ops-monitoring layout — <b>6 compact KPIs per row with coloured top borders</b>, JetBrains Mono for numbers, live refresh indicator, breadcrumb title, and terminal-style status chips. Inspired by Grafana, Datadog, Linear metrics. Best when you want to cram a lot of numbers into a single screen without feeling noisy.</p>
+    </div>
+    <span class="pill">Dense · Mono · Ops view</span>
+  </div>
+  <div class="sample sampleH">
+    <div class="hdr">
+      <div class="brand">
+        <div class="logo">CF</div>
+        <div class="name">CityFurnish Ops</div>
+        <div class="crumb">reports / <b>task-efficiency</b></div>
+      </div>
+      <div class="controls">
+        <span class="dot"></span><span>LIVE · 5s</span>
+        <button class="btn">week 14</button>
+        <button class="btn primary">↻ Refresh</button>
+      </div>
+    </div>
+    <div class="subbar">
+      <span>RANGE <b>Apr 6 – Apr 12</b></span>
+      <span>UPDATED <b>09:42 IST</b></span>
+      <span>CITIES <b>5</b></span>
+      <span>STATUS <b style="color:#059669">● healthy</b></span>
+    </div>
+    <div class="body">
+      <div class="kpis">
+        <div class="kpi c1"><div class="lbl">TOTAL</div><div class="val">1,248</div><div class="delta"><span class="up">+4.7%</span></div></div>
+        <div class="kpi c2"><div class="lbl">DONE %</div><div class="val">92.4%</div><div class="delta"><span class="up">+2.1pp</span></div></div>
+        <div class="kpi c3"><div class="lbl">ADHOC</div><div class="val">18%</div><div class="delta">≤15 tgt</div></div>
+        <div class="kpi c4"><div class="lbl">CANCEL</div><div class="val">47</div><div class="delta"><span class="down">+9</span></div></div>
+        <div class="kpi c5"><div class="lbl">AVG TAT</div><div class="val">4.2h</div><div class="delta"><span class="up">-0.3h</span></div></div>
+        <div class="kpi c6"><div class="lbl">CITIES</div><div class="val">5/5</div><div class="delta">all live</div></div>
+      </div>
+      <div class="grid">
+        <div class="panel">
+          <div class="ptitle"><span>done_pct · by category &amp; city</span><span class="fam">bar.grouped</span></div>
+          <div class="pbody">
+            <div class="chart">
+              <div class="grp"><div class="bars"><div class="b" style="height:86%"></div><div class="b d" style="height:92%"></div><div class="b e" style="height:78%"></div></div><div class="lbl">BLR</div></div>
+              <div class="grp"><div class="bars"><div class="b" style="height:74%"></div><div class="b d" style="height:81%"></div><div class="b e" style="height:69%"></div></div><div class="lbl">DEL</div></div>
+              <div class="grp"><div class="bars"><div class="b" style="height:95%"></div><div class="b d" style="height:98%"></div><div class="b e" style="height:92%"></div></div><div class="lbl">HYD</div></div>
+              <div class="grp"><div class="bars"><div class="b" style="height:82%"></div><div class="b d" style="height:88%"></div><div class="b e" style="height:76%"></div></div><div class="lbl">MUM</div></div>
+            </div>
+            <div class="legend"><span><i style="background:#3b82f6"></i>delivery</span><span><i style="background:#22c55e"></i>pickup</span><span><i style="background:#f59e0b"></i>service</span></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="ptitle"><span>city_breakdown</span><span class="fam">table</span></div>
+          <table>
+            <thead><tr><th>CITY</th><th>DONE%</th><th>STATUS</th></tr></thead>
+            <tbody>
+              <tr><td>HYDERABAD</td><td>95.1</td><td><span class="chip ok">OK</span></td></tr>
+              <tr><td>BANGALORE</td><td>85.3</td><td><span class="chip ok">OK</span></td></tr>
+              <tr><td>MUMBAI</td><td>82.0</td><td><span class="chip ok">OK</span></td></tr>
+              <tr><td>PUNE</td><td>79.4</td><td><span class="chip bad">LOW</span></td></tr>
+              <tr><td>DELHI</td><td>74.7</td><td><span class="chip bad">LOW</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================= PICKER ============================= -->
+<div class="picker">
+  <h3>Quick comparison — Round 2</h3>
+  <table>
+    <thead><tr><th>Option</th><th>Vibe</th><th>Inspiration</th><th>Font</th><th>Layout</th></tr></thead>
+    <tbody>
+      <tr><td>E · Sidebar Command Center</td><td>App-like, persistent nav, scalable</td><td>Stripe, Attio, Retool</td><td>Inter</td><td>Sidebar + topbar</td></tr>
+      <tr><td>F · Warm Neutral Editorial</td><td>Luxe, crafted, calm</td><td>Basecamp, Klarna, editorial sites</td><td>DM Sans</td><td>Top-nav · pill tabs</td></tr>
+      <tr><td>G · Vibrant Gradient KPIs</td><td>Colourful but grown-up, brand-forward</td><td>Stripe dashboard, Cash App</td><td>Geist · Inter</td><td>Gradient KPI row</td></tr>
+      <tr><td>H · Grafana-Lite Data Ops</td><td>Dense, live, monitor-style</td><td>Grafana, Datadog, Linear metrics</td><td>Inter + JetBrains Mono</td><td>6-wide KPI · breadcrumb</td></tr>
+    </tbody>
+  </table>
+  <div class="note">So now you have <b>8 light options total</b> — A-D from the first round (Bento, Aurora, Minimal, Mint) and E-H here. Pick one letter, or mix (e.g. <b>"Option E sidebar + Option G gradient KPIs"</b>) and I'll wire it into all 5 reports while keeping every data binding, chart, filter, export, and dark-mode toggle untouched.</div>
+</div>
+
+</body>
+</html>

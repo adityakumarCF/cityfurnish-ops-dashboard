@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Local secrets (NEVER commit these)
+.env
+.env.local
+
+# Local Excel data (raw uploads — not for git)
+*.xlsx
+*.xls
+*.xlsm
+*.csv
+~$*.xlsx
+.~lock.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Old / sample / scratch files (kept locally only)
+*_Sample*.html
+*.broken_backup
+_sample_data.js
+update_data.py
+outputs/

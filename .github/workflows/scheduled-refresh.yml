@@ -1,0 +1,58 @@
+name: Refresh dashboard from Metabase
+
+on:
+  # Every 30 minutes (UTC). 30 min cadence = ~48 runs/day, well under the 2000 free Action minutes/month.
+  schedule:
+    - cron: '*/30 * * * *'
+  # Allows manual trigger from the Actions tab in GitHub, and POST via API for the in-dashboard "Refresh Now" button.
+  workflow_dispatch: {}
+  # Also re-deploy when the dashboard HTML or refresh script is committed.
+  push:
+    branches: [main]
+    paths:
+      - 'Task_Efficiency_Dashboard.html'
+      - 'refresh_from_metabase.py'
+      - '.github/workflows/scheduled-refresh.yml'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dashboard-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run refresh script
+        env:
+          METABASE_URL:     ${{ secrets.METABASE_URL }}
+          METABASE_API_KEY: ${{ secrets.METABASE_API_KEY }}
+          METABASE_CARD_ID: ${{ secrets.METABASE_CARD_ID }}
+          DASHBOARD_HTML:   Task_Efficiency_Dashboard.html
+        run: python3 refresh_from_metabase.py
+
+      - name: Commit & push refreshed HTML
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Task_Efficiency_Dashboard.html
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Auto-refresh: Metabase data $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+          fi
