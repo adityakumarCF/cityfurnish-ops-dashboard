@@ -1508,6 +1508,19 @@ function buildEnhancedRawView(headers, rows, ctx, subtitleHtml){
   const notdoneCount=enhRows.filter(r=>r.raw[idx.Done]==='Not Done').length;
   const fsdCount=enhRows.filter(r=>r.raw[idx.FSD]==='True').length;
 
+  // FAD-only filter: OID appears exactly once in the full 4-month dataset AND is Done
+  let fadOids=null, fadOnlyCount=0;
+  if(ctx&&ctx.report==='fad'&&typeof PROCESSED_EXCEL_FULL!=='undefined'){
+    const oidIdx=idx.OrderId;
+    const oidCount={};
+    PROCESSED_EXCEL_FULL.rows.forEach(function(r){
+      const oid=r[oidIdx];
+      if(oid!=null&&oid!=='') oidCount[oid]=(oidCount[oid]||0)+1;
+    });
+    fadOids=new Set(Object.keys(oidCount).filter(function(oid){return oidCount[oid]===1;}));
+    fadOnlyCount=enhRows.filter(function(r){return fadOids.has(String(r.raw[oidIdx]));}).length;
+  }
+
   // Store state for interactivity
   drillRawState={
     cols:COLS,
@@ -1517,7 +1530,8 @@ function buildEnhancedRawView(headers, rows, ctx, subtitleHtml){
     sortCol:-1,
     sortDir:'asc',
     ctx:ctx,
-    subtitleHtml:subtitleHtml||''
+    subtitleHtml:subtitleHtml||'',
+    fadOids:fadOids
   };
 
   // Subtitle line (above) + filter/group row (filter left, group right)
@@ -1529,6 +1543,7 @@ function buildEnhancedRawView(headers, rows, ctx, subtitleHtml){
   html+='<button class="drill-pill-btn" data-drillfilter="resch"><span class="pill-dot" style="background:var(--orange)"></span>Rescheduled <span class="pill-count">('+reschCount+')</span></button>';
   html+='<button class="drill-pill-btn" data-drillfilter="notdone"><span class="pill-dot" style="background:var(--red)"></span>Not Done <span class="pill-count">('+notdoneCount+')</span></button>';
   html+='<button class="drill-pill-btn" data-drillfilter="fsd"><span class="pill-dot" style="background:var(--green)"></span>FSD Met <span class="pill-count">('+fsdCount+')</span></button>';
+  if(fadOids) html+='<button class="drill-pill-btn" data-drillfilter="fad_only"><span class="pill-dot" style="background:#7c3aed"></span>FAD Only <span class="pill-count">('+fadOnlyCount+')</span></button>';
   html+='</div>';
   html+='<div class="drill-pill-container" style="margin-left:auto">';
   html+='<span class="drill-pill-label">Group</span>';
@@ -1558,6 +1573,7 @@ function getEnhFilteredRows(){
     if(f==='resch') return r.raw[idx.FSD]==='False';
     if(f==='notdone') return r.raw[idx.Done]==='Not Done';
     if(f==='fsd') return r.raw[idx.FSD]==='True';
+    if(f==='fad_only') return drillRawState.fadOids&&drillRawState.fadOids.has(String(r.raw[idx.OrderId]));
     return true;
   });
 }
@@ -2845,7 +2861,6 @@ function renderSimplifiedView(){
   }
   document.getElementById('sv-content').innerHTML=html;
   svAddExportButtons();
-  loadZohoReasons();
 }
 
 function svAddExportButtons(){
@@ -3407,7 +3422,7 @@ function svRenderTat(cities,dateLabel){
   // City-wise
   var cityRows=filtCity.map(function(c){
     var p=c.done?(c.within/c.done*100):0;
-    return [c.name,c.done,c.within,c.breach,
+    return [c.name,c.total,c.done,c.within,c.breach,
       {v:p.toFixed(1)+'%',cls:pRow(c)},
       {v:(+c.avg).toFixed(1),cls:aRow(c)},
       c.resch,
@@ -3415,12 +3430,13 @@ function svRenderTat(cities,dateLabel){
   });
   var cityTotP=totDone?(totWithin/totDone*100):0;
   cityRows.push([{v:'TOTAL',cls:'sv-tot sv-tdl'},
+    {v:totCases,cls:'sv-tot'},
     {v:totDone,cls:'sv-tot'},{v:totWithin,cls:'sv-tot'},{v:totBreach,cls:'sv-tot'},
     {v:cityTotP.toFixed(1)+'%',cls:'sv-tot '+(cityTotP>=75?'sv-g':cityTotP>=50?'sv-o':'sv-r')},
     {v:avgTat,cls:'sv-tot '+(avgTat<=3?'sv-g':avgTat<=5?'sv-o':'sv-r')},
     {v:totResch,cls:'sv-tot'},{v:'',cls:'sv-tot'}]);
   h+=tatTable('CITY-WISE TAT PERFORMANCE &mdash; '+dateLabel,cityRows,
-    ['City','Tasks Done','Within TAT','TAT Breach','% Within TAT','Avg TAT (Days)','Rescheduled','Resch Rate']);
+    ['City','Total Assigned','Tasks Done','Within TAT','TAT Breach','% Within TAT','Avg TAT (Days)','Rescheduled','Resch Rate']);
 
   // Job type-wise (aggregate from cityJobData for selected cities)
   var jobMap={};
@@ -3428,9 +3444,9 @@ function svRenderTat(cities,dateLabel){
     var rows=(TAT_RAW.cityJobData&&TAT_RAW.cityJobData[city])||[];
     rows.forEach(function(row){
       var k=row.name;
-      if(!jobMap[k]) jobMap[k]={name:k,done:0,within:0,breach:0,resch:0,_wadone:0,_cases:0};
+      if(!jobMap[k]) jobMap[k]={name:k,total:0,done:0,within:0,breach:0,resch:0,_wadone:0,_cases:0};
       var m=jobMap[k];
-      m.done+=row.done;m.within+=row.within;m.breach+=row.breach;m.resch+=row.resch;
+      m.total+=(row.total||0);m.done+=row.done;m.within+=row.within;m.breach+=row.breach;m.resch+=row.resch;
       m._wadone+=row.avg*row.done;m._cases+=(row.done+row.breach);
     });
   });
@@ -3438,23 +3454,25 @@ function svRenderTat(cities,dateLabel){
     var p=m.done?(m.within/m.done*100):0;
     var av=m.done?(m._wadone/m.done).toFixed(1):0;
     var rr=m._cases?(m.resch/m._cases*100):0;
-    return [m.name,m.done,m.within,m.breach,
+    return [m.name,m.total,m.done,m.within,m.breach,
       {v:p.toFixed(1)+'%',cls:p>=75?'sv-g':p>=50?'sv-o':'sv-r'},
       {v:av,cls:parseFloat(av)<=3?'sv-g':parseFloat(av)<=5?'sv-o':'sv-r'},
       m.resch,rr.toFixed(1)+'%'];
   });
   if(jobRows.length>0){
-    var jTD=jobRows.reduce(function(s,r){return s+(+r[1]);},0);
-    var jTW=jobRows.reduce(function(s,r){return s+(+r[2]);},0);
-    var jTB=jobRows.reduce(function(s,r){return s+(+r[3]);},0);
+    var jTA=Object.values(jobMap).reduce(function(s,m){return s+m.total;},0);
+    var jTD=Object.values(jobMap).reduce(function(s,m){return s+m.done;},0);
+    var jTW=Object.values(jobMap).reduce(function(s,m){return s+m.within;},0);
+    var jTB=Object.values(jobMap).reduce(function(s,m){return s+m.breach;},0);
     var jTR=Object.values(jobMap).reduce(function(s,m){return s+m.resch;},0);
     var jTP=jTD?(jTW/jTD*100):0;
     jobRows.push([{v:'TOTAL',cls:'sv-tot sv-tdl'},
+      {v:jTA,cls:'sv-tot'},
       {v:jTD,cls:'sv-tot'},{v:jTW,cls:'sv-tot'},{v:jTB,cls:'sv-tot'},
       {v:jTP.toFixed(1)+'%',cls:'sv-tot '+(jTP>=75?'sv-g':jTP>=50?'sv-o':'sv-r')},
       {v:avgTat,cls:'sv-tot'},{v:jTR,cls:'sv-tot'},{v:'',cls:'sv-tot'}]);
     h+=tatTable('JOB TYPE-WISE TAT PERFORMANCE &mdash; '+dateLabel,jobRows,
-      ['Job Type','Tasks Done','Within TAT','TAT Breach','% Within TAT','Avg TAT (Days)','Rescheduled','Resch Rate']);
+      ['Job Type','Total Assigned','Tasks Done','Within TAT','TAT Breach','% Within TAT','Avg TAT (Days)','Rescheduled','Resch Rate']);
   }
 
   // Category-wise
@@ -3463,21 +3481,26 @@ function svRenderTat(cities,dateLabel){
     var catRows=catFilt.map(function(c){
       var p=c.done?(c.within/c.done*100):0;
       var rr=c.total?(c.resch/c.total*100):0;
-      return [c.name,c.done,c.within,c.breach,
+      return [c.name,c.total,c.done,c.within,c.breach,
         {v:p.toFixed(1)+'%',cls:p>=75?'sv-g':p>=50?'sv-o':'sv-r'},
         {v:(+c.avg).toFixed(1),cls:c.avg<=3?'sv-g':c.avg<=5?'sv-o':'sv-r'},
         c.resch,rr.toFixed(1)+'%'];
     });
+    var cTA=catFilt.reduce(function(s,c){return s+c.total;},0);
+    var cTD=catFilt.reduce(function(s,c){return s+c.done;},0);
+    var cTW=catFilt.reduce(function(s,c){return s+c.within;},0);
+    var cTB=catFilt.reduce(function(s,c){return s+c.breach;},0);
+    var cTR=catFilt.reduce(function(s,c){return s+c.resch;},0);
+    var cTP=cTD?(cTW/cTD*100):0;
+    catRows.push([{v:'TOTAL',cls:'sv-tot sv-tdl'},
+      {v:cTA,cls:'sv-tot'},
+      {v:cTD,cls:'sv-tot'},{v:cTW,cls:'sv-tot'},{v:cTB,cls:'sv-tot'},
+      {v:cTP.toFixed(1)+'%',cls:'sv-tot '+(cTP>=75?'sv-g':cTP>=50?'sv-o':'sv-r')},
+      {v:avgTat,cls:'sv-tot '+(avgTat<=3?'sv-g':avgTat<=5?'sv-o':'sv-r')},
+      {v:cTR,cls:'sv-tot'},{v:'',cls:'sv-tot'}]);
     h+=tatTable('CATEGORY-WISE TAT PERFORMANCE &mdash; '+dateLabel,catRows,
-      ['Category','Tasks Done','Within TAT','TAT Breach','% Within TAT','Avg TAT (Days)','Rescheduled','Resch Rate']);
+      ['Category','Total Assigned','Tasks Done','Within TAT','TAT Breach','% Within TAT','Avg TAT (Days)','Rescheduled','Resch Rate']);
   }
-
-  // Live Zoho reschedule reasons panel (populated async after render)
-  h+='<div class="sv-section">';
-  h+='<div class="sv-report-title">RESCHEDULE REASONS &mdash; LIVE FROM ZOHO DESK</div>';
-  h+='<div class="sv-report-subtitle">Auto-updated when a ticket is rescheduled in Zoho &middot; powered by Cloudflare KV</div>';
-  h+='<div id="sv-zoho-reasons" style="padding:12px"><p style="color:var(--muted);font-size:12px;text-align:center">Loading&hellip;</p></div>';
-  h+='</div>';
 
   h+='</div>';
   return h;
@@ -3721,12 +3744,22 @@ function renderFadPage(){
   // TRANSPOSED: cities as rows, metrics as columns
   const fadRowsList=[...cities]; if(cities.length>1)fadRowsList.push('Total');
   document.getElementById('fad-tables').innerHTML = FAD.categories.map(cat=>{
-    // Columns: Orders (unique Order IDs) / Done (orders with at least 1 row done) / FAD (single-row orders) / FAD%
-    let h=`<div class="card"><h3>${cat}</h3><table><thead><tr><th>City</th><th>Orders</th><th>Done</th><th>FAD</th><th>FAD %</th></tr></thead><tbody>`;
+    // Columns: Assigned (from TASK.task, matches Task report) / Done / FAD (globally-unique done orders) / FAD%
+    let h=`<div class="card"><h3>${cat}</h3><table><thead><tr><th>City</th><th>Assigned</th><th>Done</th><th>FAD</th><th>FAD %</th></tr></thead><tbody>`;
     fadRowsList.forEach(rlbl=>{
       let d;
-      if(rlbl==='Total'){d={assigned:0,done:0,fad:0};cities.forEach(ci=>{if(FAD.fad[cat][ci]){d.assigned+=FAD.fad[cat][ci].assigned;d.done+=FAD.fad[cat][ci].done;d.fad+=FAD.fad[cat][ci].fad;}});d.pct=d.assigned?(d.fad/d.assigned*100):0;}
-      else{d=FAD.fad[cat][rlbl]||{assigned:0,done:0,fad:0,pct:0};}
+      if(rlbl==='Total'){
+        d={assigned:0,done:0,fad:0};
+        cities.forEach(ci=>{
+          if(TASK.task[cat]&&TASK.task[cat][ci]){d.assigned+=TASK.task[cat][ci].total||0;d.done+=TASK.task[cat][ci].done||0;}
+          if(FAD.fad[cat]&&FAD.fad[cat][ci]) d.fad+=FAD.fad[cat][ci].fad;
+        });
+        d.pct=d.assigned?(d.fad/d.assigned*100):0;
+      } else {
+        const td=TASK.task[cat]&&TASK.task[cat][rlbl]||{total:0,done:0};
+        const fd=FAD.fad[cat]&&FAD.fad[cat][rlbl]||{fad:0};
+        d={assigned:td.total,done:td.done,fad:fd.fad,pct:td.total?(fd.fad/td.total*100):0};
+      }
       const rowCls=(rlbl==='Total')?' class="total-row"':'';
       h+=`<tr${rowCls}><td style="text-align:center">${rlbl}</td><td>${d.assigned}</td><td>${d.done}</td><td>${d.fad}</td><td>${pctBadge(d.pct,[90,75])}</td></tr>`;
     });
@@ -3957,7 +3990,7 @@ function renderTatPage(){
   ].map(k=>`<div class="kpi ${k.c}" onclick="openKpiDrill(this)"${k.d?' '+k.d:''}>${kpiIcon(k.c)}<div class="label">${k.l}</div><div class="value">${k.v}</div><div class="sub">${k.s}</div></div>`).join('');
 
   function tatTable(data, groupLabel, includeResch, showTarget){
-    const baseCols = [groupLabel];
+    const baseCols = [groupLabel,'Total Assigned'];
     if(showTarget) baseCols.push('Target');
     baseCols.push('Tasks Done','Within TAT','TAT Breach','% Within TAT','Avg TAT');
     if(includeResch) baseCols.push('Rescheduled','Resch Rate');
@@ -3966,7 +3999,7 @@ function renderTatPage(){
       const rowTarget = d.target || 3;
       const pBadge = d.pct>=75?'badge-green':d.pct>=50?'badge-orange':'badge-red';
       const avgStyle = d.avg>rowTarget?'badge-red':d.avg>(rowTarget*0.7)?'badge-orange':'badge-green';
-      h+=`<tr><td style="text-align:center">${d.name}</td>`;
+      h+=`<tr><td style="text-align:center">${d.name}</td><td>${d.total!=null?d.total:d.done}</td>`;
       if(showTarget) h+=`<td><span class="badge badge-gray" style="background:rgba(100,116,139,0.12);color:var(--muted)">≤${rowTarget}d</span></td>`;
       h+=`<td>${d.done}</td><td>${d.within}</td><td>${d.breach}</td><td><span class="badge ${pBadge}">${d.pct.toFixed(1)}%</span></td><td><span class="badge ${avgStyle}">${d.avg.toFixed(1)}</span></td>`;
       if(includeResch) h+=`<td>${d.resch}</td><td>${d.resch_rate!==undefined?d.resch_rate.toFixed(1):(d.done+d.resch?(d.resch/(d.done+d.resch)*100).toFixed(1):'0.0')}%</td>`;
@@ -3982,7 +4015,8 @@ function renderTatPage(){
   cities.forEach(city=>{
     const jobs = TAT_RAW.cityJobData[city]||[];
     jobs.forEach(j=>{
-      if(!jobAgg[j.name]) jobAgg[j.name]={name:j.name,cat:j.cat,target:j.target||3,done:0,within:0,breach:0,avg_sum:0,resch:0};
+      if(!jobAgg[j.name]) jobAgg[j.name]={name:j.name,cat:j.cat,target:j.target||3,total:0,done:0,within:0,breach:0,avg_sum:0,resch:0};
+      jobAgg[j.name].total+=(j.total||0);
       jobAgg[j.name].done+=j.done;
       jobAgg[j.name].within+=j.within;
       jobAgg[j.name].breach+=j.breach;
@@ -4665,9 +4699,13 @@ function recomputeAggregates(startYMD,endYMD){
     var assignedDate=parseAssignedDate(r[R_RDI]||'')||parseAssignedDate(r[R_FSI]||''); // Req Date, else First Sched Date
     var isDone=!!DONE_ST[status];
     var isResch=sd&&fs&&sd!==fs; // Rescheduled = ANY task whose Scheduled Date moved off its First Schedule Date (matches Reschedule Reason Breakdown count)
-    // Track total cases per city/cat
+    // Track total cases per city/cat/jobtype
     if(rTatC[city])rTatC[city].total++;
     if(rTatCat[cat])rTatCat[cat].total++;
+    if(rTatJC[city]){
+      if(!rTatJC[city][jt])rTatJC[city][jt]={name:jt,cat:cat,target:TAT_TARGETS[cat]||3,total:0,done:0,within:0,breach:0,avg_sum:0,resch:0};
+      rTatJC[city][jt].total++;
+    }
     // Track rescheduled (pending tasks moved off their original date) — must happen before done guard
     if(isResch){
       if(rTatC[city])rTatC[city].resch++;
@@ -4701,7 +4739,7 @@ function recomputeAggregates(startYMD,endYMD){
   TAT_RAW.cityJobData={};
   newCities.forEach(function(city){
     TAT_RAW.cityJobData[city]=Object.values(rTatJC[city]||{}).map(function(j){
-      return{name:j.name,cat:j.cat,target:j.target,done:j.done,within:j.within,breach:j.breach,
+      return{name:j.name,cat:j.cat,target:j.target,total:j.total||0,done:j.done,within:j.within,breach:j.breach,
         avg:j.done?+(j.avg_sum/j.done).toFixed(2):0,resch:j.resch,
         pct:j.done?+((j.within/j.done)*100).toFixed(1):0,
         resch_rate:(j.done+j.resch)?+(j.resch/(j.done+j.resch)*100).toFixed(1):0};
