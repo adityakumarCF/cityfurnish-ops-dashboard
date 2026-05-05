@@ -432,7 +432,7 @@ body.dark-mode .simplified-btn:hover{background:rgba(255,255,255,0.08)}
 .sv-filter-label{font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap}
 .sv-export-btn{background:#1e3a5f;color:#fff;border:none;border-radius:6px;padding:7px 16px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .15s}
 .sv-export-btn:hover{background:#2a5080}
-.sv-section{margin-bottom:28px;border-radius:6px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.12);border:1px solid #c8d8e8}
+.sv-section{margin-bottom:52px;border-radius:6px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.12);border:1px solid #c8d8e8}
 .sv-report-title{background:#1e3a5f;color:#fff;font-size:13px;font-weight:800;text-align:center;padding:10px 16px;letter-spacing:0.6px;text-transform:uppercase}
 .sv-report-subtitle{background:#2a5080;color:#c8ddf5;font-size:10px;text-align:center;padding:5px 16px;font-style:italic}
 .sv-kpi-grid{display:grid;gap:0;background:#fff}
@@ -455,6 +455,12 @@ body.dark-mode .simplified-btn:hover{background:rgba(255,255,255,0.08)}
 .sv-g{color:#16a34a;font-weight:700}
 .sv-r{color:#dc2626;font-weight:700}
 .sv-o{color:#ea580c;font-weight:700}
+
+.sv-title-bar{display:flex;align-items:center;background:#1e3a5f}
+.sv-title-bar .sv-report-title{flex:1;background:transparent}
+.sv-sec-export{background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.28);color:#fff;border-radius:4px;padding:5px 12px;font-size:10px;font-weight:700;cursor:pointer;margin-right:10px;white-space:nowrap;transition:background .15s;flex-shrink:0}
+.sv-sec-export:hover{background:rgba(255,255,255,0.26)}
+.sv-table td{text-align:center}
 body.dark-mode .sv-section{border-color:#2a3a4a;box-shadow:0 2px 10px rgba(0,0,0,0.4)}
 body.dark-mode .sv-kpi-grid,.sv-table td,.sv-table tr:nth-child(even) td{background:var(--card,#1a2535)}
 body.dark-mode .sv-kpi-hdr{background:#1a3050;color:#90bfe0}
@@ -1023,10 +1029,14 @@ document.addEventListener('keydown',function(ev){
 <div class="report-page" id="page-simplified">
   <div class="sv-page">
     <div class="sv-filter-row">
-      <span class="sv-filter-label">Cities:</span>
       <div id="filter-simplified" style="display:contents"></div>
-      <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
-        <button class="sv-export-btn" onclick="exportSimplifiedExcel()">&#8595; Export Excel</button>
+      <div class="time-view-bar" data-report="simplified" style="margin-left:14px;flex-shrink:0">
+        <span class="time-view-label">View</span>
+        <div class="time-view-toggle">
+          <button class="tv-btn active" onclick="switchTimeView('daily',this)"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Day</button>
+          <button class="tv-btn" onclick="switchTimeView('weekly',this)"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Week</button>
+          <button class="tv-btn" onclick="switchTimeView('monthly',this)"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Month</button>
+        </div>
       </div>
     </div>
     <div id="sv-content"></div>
@@ -2646,6 +2656,7 @@ function switchReport(id,el){
 }
 
 function switchToSimplifiedView(btn){
+  if(typeof currentRange!=='undefined'&&!currentRange['simplified']) currentRange['simplified']='daily';
   document.querySelectorAll('.report-page').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.report-tab').forEach(function(t){t.classList.remove('active');});
   if(btn) btn.classList.add('active');
@@ -2696,6 +2707,54 @@ function renderSimplifiedView(){
   html+=svRenderFsd(cities,dateLabel);
   html+=svRenderTat(cities,dateLabel);
   document.getElementById('sv-content').innerHTML=html;
+  svAddExportButtons();
+}
+
+function svAddExportButtons(){
+  document.querySelectorAll('#sv-content .sv-section').forEach(function(sec){
+    var titleEl=sec.querySelector('.sv-report-title');
+    if(!titleEl||titleEl.parentElement.classList.contains('sv-title-bar')) return;
+    // Wrap title in flex bar with export btn
+    var bar=document.createElement('div');
+    bar.className='sv-title-bar';
+    titleEl.parentNode.insertBefore(bar,titleEl);
+    bar.appendChild(titleEl);
+    var btn=document.createElement('button');
+    btn.className='sv-sec-export';
+    btn.innerHTML='&#8595; Export';
+    btn.onclick=function(){svExportSection(sec);};
+    bar.appendChild(btn);
+  });
+}
+
+function svExportSection(sec){
+  var titleEl=sec.querySelector('.sv-report-title');
+  var title=(titleEl?titleEl.textContent:'Report').replace(/[^\w\s\-]/g,'').trim().replace(/\s+/g,'_').slice(0,50);
+  var clone=sec.cloneNode(true);
+  clone.querySelectorAll('.sv-sec-export,.sv-title-bar-actions').forEach(function(b){b.remove();});
+  // Inline colours from class names
+  clone.querySelectorAll('.sv-g').forEach(function(el){el.style.color='#16a34a';el.style.fontWeight='bold';});
+  clone.querySelectorAll('.sv-r').forEach(function(el){el.style.color='#dc2626';el.style.fontWeight='bold';});
+  clone.querySelectorAll('.sv-o').forEach(function(el){el.style.color='#ea580c';el.style.fontWeight='bold';});
+  clone.querySelectorAll('tr.sv-tot td').forEach(function(td){td.style.background='#d4e8f8';td.style.fontWeight='bold';td.style.borderTop='2px solid #3a6eb0';});
+  clone.querySelectorAll('tr.sv-cat-hdr td').forEach(function(td){td.style.background='#2e5fa3';td.style.color='white';td.style.fontWeight='bold';});
+  clone.querySelectorAll('.sv-report-title').forEach(function(el){el.style.background='#1e3a5f';el.style.color='white';el.style.textAlign='center';el.style.fontWeight='800';el.style.padding='10px';el.style.fontSize='13px';});
+  clone.querySelectorAll('.sv-report-subtitle').forEach(function(el){el.style.background='#2a5080';el.style.color='#c8ddf5';el.style.textAlign='center';el.style.fontStyle='italic';el.style.padding='5px';});
+  clone.querySelectorAll('.sv-section-title').forEach(function(el){el.style.background='#2e5fa3';el.style.color='white';el.style.textAlign='center';el.style.fontWeight='700';el.style.padding='7px';});
+  clone.querySelectorAll('.sv-kpi-hdr').forEach(function(el){el.style.background='#ddeef8';el.style.color='#1e3a5f';el.style.fontWeight='700';el.style.textAlign='center';el.style.padding='5px';el.style.fontSize='9px';});
+  clone.querySelectorAll('.sv-kpi-val').forEach(function(el){el.style.fontSize='20px';el.style.fontWeight='800';el.style.textAlign='center';el.style.padding='10px';});
+  clone.querySelectorAll('th').forEach(function(el){el.style.background='#3a6eb0';el.style.color='white';el.style.fontWeight='700';el.style.padding='7px 10px';el.style.border='1px solid #2e5a9a';el.style.textAlign='center';});
+  clone.querySelectorAll('td').forEach(function(el){el.style.padding='6px 10px';el.style.border='1px solid #ccd8e8';el.style.textAlign='center';});
+  clone.querySelectorAll('table').forEach(function(el){el.style.borderCollapse='collapse';el.style.width='100%';});
+  var xls='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">';
+  xls+='<head><meta charset="utf-8"><style>body{font-family:Calibri,Arial,sans-serif}</style></head>';
+  xls+='<body>'+clone.outerHTML+'</body></html>';
+  var blob=new Blob([xls],{type:'application/vnd.ms-excel;charset=utf-8'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=title+'.xls';
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(a.href);},100);
 }
 
 /* ── SECTION 1: Trip Efficiency ── */
