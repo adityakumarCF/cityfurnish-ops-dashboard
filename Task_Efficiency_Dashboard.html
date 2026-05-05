@@ -4657,8 +4657,8 @@ function recomputeAggregates(startYMD,endYMD){
   TRIP.unlinkedSRs={total_rows:unlinked,unique_tickets:new Set(rows.filter(function(r){return r[CAI]==='SR'&&orderMap[r[OI]]&&orderMap[r[OI]].del===0;}).map(function(r){return r[TKI];})).size};
 }
 
-var tvState={task:'daily',fad:'daily',fsd:'daily',tat:'daily',trip:'daily',overview:'daily',kpitrend:'daily'};
-var tvOffset={task:0,fad:0,fsd:0,tat:0,trip:0,overview:0,kpitrend:0};
+var tvState={task:'daily',fad:'daily',fsd:'daily',tat:'daily',trip:'daily',overview:'daily',kpitrend:'daily',simplified:'daily'};
+var tvOffset={task:0,fad:0,fsd:0,tat:0,trip:0,overview:0,kpitrend:0,simplified:0};
 var tvMonths=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 function getActiveReport(){

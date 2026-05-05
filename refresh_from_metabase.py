@@ -135,6 +135,7 @@ def fetch_zoho_reasons(case_ids):
         'orgId': ZOHO_ORG_ID,
     }
     reasons = {}
+    debug_logged = False  # log raw customFields for first ticket only
     for idx, case_id in enumerate(case_ids):
         url = f'https://desk.zoho.in/api/v1/tickets/{case_id}?include=customFields'
         req = urlreq.Request(url, headers=headers)
@@ -142,12 +143,29 @@ def fetch_zoho_reasons(case_ids):
             with urlreq.urlopen(req, timeout=30) as r:
                 ticket = json.loads(r.read().decode('utf-8'))
             cf = ticket.get('customFields') or {}
+            if not debug_logged:
+                print(f'  [zoho] DEBUG first ticket keys: {list(cf.keys())}', flush=True)
+                print(f'  [zoho] DEBUG first ticket customFields: {json.dumps(cf, ensure_ascii=False)[:500]}', flush=True)
+                debug_logged = True
             tk_num = str(ticket.get('ticketNumber') or '').strip()
+            # Try both display name and common Zoho internal field name variants
+            reason = (
+                cf.get('Reschedule Reason') or
+                cf.get('Rescheduled Reason') or
+                cf.get('reschedule_reason') or
+                cf.get('cf_reschedule_reason') or ''
+            ).strip()
+            sub_reason = (
+                cf.get('Pickup Sub Reason') or
+                cf.get('Pickup Reason') or
+                cf.get('pickup_sub_reason') or
+                cf.get('cf_pickup_sub_reason') or ''
+            ).strip()
             if tk_num:
                 reasons[tk_num] = {
-                    'reason':     (cf.get('Reschedule Reason') or '').strip(),
-                    'subReason':  (cf.get('Pickup Sub Reason') or cf.get('Pickup Reason') or '').strip(),
-                    'caseId':     case_id,
+                    'reason':    reason,
+                    'subReason': sub_reason,
+                    'caseId':    case_id,
                 }
         except Exception as e:
             print(f'  [zoho] WARN ticket {case_id}: {e}', flush=True)
