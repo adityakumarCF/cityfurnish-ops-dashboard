@@ -69,6 +69,8 @@ jobs:
           mkdir -p _site
           cp Task_Efficiency_Dashboard.html _site/index.html
           cp Task_Efficiency_Dashboard.html _site/Task_Efficiency_Dashboard.html
+          # Copy image assets (logos, etc.) so they're served from Pages
+          cp -v *.png *.jpg _site/ 2>/dev/null || true
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
