@@ -162,6 +162,7 @@ PIPELINE = [
         "createdAt":      1,
         "status":         1,
         "scheduledDate":  1,
+        "firstScheduleDate": {"$arrayElemAt": ["$delivery.firstScheduleDate", 0]},
         "Confirmation Status": {"$cond": {
             "if": {"$anyElementTrue": {"$map": {
                 "input": "$delivery", "as": "del",
@@ -200,6 +201,7 @@ PIPELINE = [
         "Ticket Number":        "$ticketNumber",
         "Transition Date":      "$createdAt",
         "Scheduled Date":       "$scheduledDate",
+        "First Schedule Date":  "$firstScheduleDate",
         "Done Date":            "$doneDate",
         "Adhoc Vehicle":        "$adhoc_vehicle",
         "LOB":                  "$lob",
