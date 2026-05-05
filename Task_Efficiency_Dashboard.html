@@ -2052,15 +2052,22 @@ async function loadZohoReasons(){
   var el = document.getElementById('sv-zoho-reasons');
   if(!el) return;
   var map = await fetchZohoReasons();
-  var keys = Object.keys(map);
+  // Filter by current date range so daily/weekly/monthly selectors apply
+  var range = (typeof resolveCurrentRange==='function') ? resolveCurrentRange('simplified') : null;
+  var filtered = {};
+  Object.keys(map).forEach(function(tk){
+    var sd = map[tk].sd || '';
+    if(!range || !sd || (sd >= range.start && sd <= range.end)) filtered[tk] = map[tk];
+  });
+  var keys = Object.keys(filtered);
   if(!keys.length){
-    el.innerHTML = '<p style="color:var(--muted);font-size:12px;text-align:center;padding:12px">No reschedule reasons received yet from Zoho Desk. Reasons appear here automatically once the Zoho webhook fires.</p>';
+    el.innerHTML = '<p style="color:var(--muted);font-size:12px;text-align:center;padding:12px">No rescheduled tickets in the selected period.</p>';
     return;
   }
   // Aggregate by reason
   var counts = {};
   keys.forEach(function(tk){
-    var r = map[tk].reason || 'Not specified';
+    var r = filtered[tk].reason || 'Not specified';
     counts[r] = (counts[r]||0) + 1;
   });
   var total = keys.length;

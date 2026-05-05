@@ -113,10 +113,11 @@ def zoho_access_token():
         raise ValueError(f'Zoho token refresh failed: {resp}')
     return resp['access_token']
 
-def fetch_zoho_reasons(case_ids):
+def fetch_zoho_reasons(case_ids, cid_to_sd=None):
     """Fetch reschedule reasons from Zoho Desk for the given Case IDs.
-    Returns dict keyed by ticketNumber (short) → {reason, subReason, caseId}.
-    Silently skips if Zoho credentials are not configured."""
+    Returns dict keyed by ticketNumber (short) → {reason, subReason, caseId, sd}.
+    cid_to_sd maps caseId → scheduledDate (YYYY-MM-DD) so the dashboard can
+    filter by date range. Silently skips if Zoho credentials are not configured."""
     if not (ZOHO_CLIENT_ID and ZOHO_CLIENT_SECRET and ZOHO_REFRESH_TOKEN):
         print('[zoho] Credentials not set — skipping reschedule reasons', flush=True)
         return {}
@@ -166,6 +167,7 @@ def fetch_zoho_reasons(case_ids):
                     'reason':    reason,
                     'subReason': sub_reason,
                     'caseId':    case_id,
+                    'sd':        (cid_to_sd or {}).get(case_id, ''),
                 }
         except Exception as e:
             print(f'  [zoho] WARN ticket {case_id}: {e}', flush=True)
@@ -435,6 +437,7 @@ CASE_ID_COL = find_col('Case ID Number', 'caseId', 'case_id')
 RESCH_COL   = find_col('rescheduledDate', 'Rescheduled Date', 'rescheduled_date')
 
 rescheduled_case_ids = []
+cid_to_sd = {}   # Case ID → Scheduled Date (YYYY-MM-DD) for date-range filtering in the dashboard
 seen_cids = set()
 if CASE_ID_COL >= 0 and RESCH_COL >= 0:
     # Sort rows by scheduled date descending so most-recent rescheduled go first
@@ -444,13 +447,14 @@ if CASE_ID_COL >= 0 and RESCH_COL >= 0:
             if cid and cid not in seen_cids:
                 seen_cids.add(cid)
                 rescheduled_case_ids.append(cid)
+                cid_to_sd[cid] = row[i['SD']] or ''
     # Cap at 250 to keep the refresh under ~40 seconds of Zoho API calls
     if len(rescheduled_case_ids) > 250:
         print(f'[zoho] Capping at 250 most-recent rescheduled (total: {len(rescheduled_case_ids)})', flush=True)
         rescheduled_case_ids = rescheduled_case_ids[:250]
 print(f'[refresh] Rescheduled tickets to look up: {len(rescheduled_case_ids)}', flush=True)
 
-zoho_reasons = fetch_zoho_reasons(rescheduled_case_ids)
+zoho_reasons = fetch_zoho_reasons(rescheduled_case_ids, cid_to_sd)
 
 # ─────────────────────────────────────────────────────────────
 # Build JS constants
