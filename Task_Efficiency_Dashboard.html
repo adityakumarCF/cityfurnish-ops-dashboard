@@ -2656,16 +2656,16 @@ function switchReport(id,el){
 }
 
 function switchToSimplifiedView(btn){
-  if(typeof currentRange!=='undefined'&&!currentRange['simplified']) currentRange['simplified']='daily';
+  if(typeof tvState!=='undefined'&&!tvState['simplified']) tvState['simplified']='daily';
+  if(typeof calDates!=='undefined'&&!calDates['simplified']) calDates['simplified']=calDates['task']||new Date(2026,4,2);
   document.querySelectorAll('.report-page').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.report-tab').forEach(function(t){t.classList.remove('active');});
-  // Hide slider — no report-tab is active
   var slider=document.getElementById('seg-slider');
   if(slider) slider.style.width='0';
   if(btn) btn.classList.add('active');
   var page=document.getElementById('page-simplified');
   if(page) page.classList.add('active');
-  renderSimplifiedView();
+  resolveAndRender('simplified');
 }
 
 // ==================== SIMPLIFIED / EXCEL VIEW ====================
@@ -2715,10 +2715,15 @@ function renderSimplifiedView(){
   var cities=getSelectedCities('simplified');
   var dateLabel=svDateLabel();
   var html='';
-  html+=svRenderTrip(cities,dateLabel);
-  html+=svRenderFad(cities,dateLabel);
-  html+=svRenderFsd(cities,dateLabel);
-  html+=svRenderTat(cities,dateLabel);
+  try{
+    html+=svRenderTrip(cities,dateLabel);
+    html+=svRenderFad(cities,dateLabel);
+    html+=svRenderFsd(cities,dateLabel);
+    html+=svRenderTat(cities,dateLabel);
+  }catch(e){
+    html+='<p style="color:red;padding:20px">Render error: '+e.message+'</p>';
+    console.error('renderSimplifiedView error:',e);
+  }
   document.getElementById('sv-content').innerHTML=html;
   svAddExportButtons();
 }
@@ -4193,10 +4198,10 @@ function recomputeAggregates(startYMD,endYMD){
   rows.forEach(function(r){if(r[CI])citySet[r[CI]]=1;});
   var newCities=Object.keys(citySet).sort();
   var wasAll={};
-  ['task','fad','fsd','tat','trip'].forEach(function(rpt){wasAll[rpt]=citySelection[rpt].size===ALL_CITIES.length;});
+  ['task','fad','fsd','tat','trip','simplified'].forEach(function(rpt){wasAll[rpt]=citySelection[rpt].size===ALL_CITIES.length;});
   ALL_CITIES.length=0;
   newCities.forEach(function(c){ALL_CITIES.push(c);});
-  ['task','fad','fsd','tat','trip'].forEach(function(rpt){
+  ['task','fad','fsd','tat','trip','simplified'].forEach(function(rpt){
     var sel=citySelection[rpt];
     if(wasAll[rpt]){sel.clear();ALL_CITIES.forEach(function(c){sel.add(c);});}
     else{var arr=[...sel];arr.forEach(function(c){if(!ALL_CITIES.includes(c))sel.delete(c);});if(sel.size===0)ALL_CITIES.forEach(function(c){sel.add(c);});}
