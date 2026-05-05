@@ -1999,6 +1999,7 @@ function openKpiDrill(el){
     ctx.labels.push('Rescheduled');
   }
   openDrillBase(label+' — Raw Data',null,'',ctx,false,true);
+  if(resch==='1') setTimeout(injectZohoReasonsInDrill, 400);
 }
 
 function openDrillFromTable(card, title){
@@ -2025,6 +2026,82 @@ function toggleReadme(){
 // The Worker triggers the refresh workflow and proxies polling for status.
 // No tokens in this page.
 window.WORKER_URL = 'https://cityfurnish-ops-dashboard.aditya-kumar-f81.workers.dev';
+
+// ── Zoho reschedule reasons (live from Cloudflare KV via Worker) ──────────
+var _zohoReasonsCache = null;
+var _zohoReasonsFetching = false;
+
+async function fetchZohoReasons(){
+  if(_zohoReasonsCache) return _zohoReasonsCache;
+  if(_zohoReasonsFetching) return {};
+  _zohoReasonsFetching = true;
+  try{
+    var resp = await fetch(window.WORKER_URL + '/zoho-reasons');
+    if(resp.ok) _zohoReasonsCache = await resp.json();
+    else _zohoReasonsCache = {};
+  }catch(e){ _zohoReasonsCache = {}; }
+  _zohoReasonsFetching = false;
+  return _zohoReasonsCache;
+}
+
+// Called after renderSimplifiedView sets innerHTML — populates the reasons panel
+async function loadZohoReasons(){
+  var el = document.getElementById('sv-zoho-reasons');
+  if(!el) return;
+  var map = await fetchZohoReasons();
+  var keys = Object.keys(map);
+  if(!keys.length){
+    el.innerHTML = '<p style="color:var(--muted);font-size:12px;text-align:center;padding:12px">No reschedule reasons received yet from Zoho Desk. Reasons appear here automatically once the Zoho webhook fires.</p>';
+    return;
+  }
+  // Aggregate by reason
+  var counts = {};
+  keys.forEach(function(tk){
+    var r = map[tk].reason || 'Not specified';
+    counts[r] = (counts[r]||0) + 1;
+  });
+  var total = keys.length;
+  var sorted = Object.entries(counts).sort(function(a,b){return b[1]-a[1];});
+  var h = '<table class="sv-table"><thead><tr><th>Reschedule Reason</th><th>Count</th><th>% Share</th></tr></thead><tbody>';
+  sorted.forEach(function(pair){
+    var pct = (pair[1]/total*100).toFixed(1);
+    h += '<tr><td style="text-align:left">'+pair[0]+'</td><td>'+pair[1]+'</td><td class="'+(pct>=30?'sv-r':pct>=15?'sv-o':'sv-g')+'">'+pct+'%</td></tr>';
+  });
+  h += '<tr class="sv-tot"><td style="text-align:left"><strong>Total Rescheduled</strong></td><td><strong>'+total+'</strong></td><td></td></tr>';
+  h += '</tbody></table>';
+  el.innerHTML = h;
+}
+
+// Enhance rescheduled drill table with Zoho reason column
+async function injectZohoReasonsInDrill(){
+  var map = await fetchZohoReasons();
+  if(!Object.keys(map).length) return;
+  var tbl = document.querySelector('#drill-view-raw table');
+  if(!tbl) return;
+  // Find Ticket Number column index
+  var hdrs = Array.from(tbl.querySelectorAll('thead th'));
+  var tkIdx = hdrs.findIndex(function(h){return h.textContent.trim().toLowerCase().includes('ticket');});
+  if(tkIdx < 0) return;
+  // Add header
+  var hdrTr = tbl.querySelector('thead tr');
+  var th = document.createElement('th');
+  th.textContent = 'Reschedule Reason';
+  th.style.background = '#1e3a5f';
+  hdrTr.appendChild(th);
+  // Add cells
+  tbl.querySelectorAll('tbody tr').forEach(function(tr){
+    var cells = tr.querySelectorAll('td');
+    var td = document.createElement('td');
+    if(cells.length > tkIdx){
+      var tkNum = cells[tkIdx].textContent.trim();
+      var entry = map[tkNum];
+      td.textContent = entry ? (entry.reason || '—') : '—';
+      td.style.textAlign = 'left';
+      if(entry && entry.subReason) td.title = entry.subReason;
+    } else { td.textContent = '—'; }
+    tr.appendChild(td);
+  });
+}
 
 async function triggerRefresh(btn){
   if (!btn) return;
@@ -2738,6 +2815,7 @@ function renderSimplifiedView(){
   }
   document.getElementById('sv-content').innerHTML=html;
   svAddExportButtons();
+  loadZohoReasons();
 }
 
 function svAddExportButtons(){
@@ -3239,6 +3317,13 @@ function svRenderTat(cities,dateLabel){
     h+=tatTable('CATEGORY-WISE TAT PERFORMANCE &mdash; '+dateLabel,catRows,
       ['Category','Tasks Done','Within TAT','TAT Breach','% Within TAT','Avg TAT (Days)','Rescheduled','Resch Rate']);
   }
+
+  // Live Zoho reschedule reasons panel (populated async after render)
+  h+='<div class="sv-section">';
+  h+='<div class="sv-report-title">RESCHEDULE REASONS &mdash; LIVE FROM ZOHO DESK</div>';
+  h+='<div class="sv-report-subtitle">Auto-updated when a ticket is rescheduled in Zoho &middot; powered by Cloudflare KV</div>';
+  h+='<div id="sv-zoho-reasons" style="padding:12px"><p style="color:var(--muted);font-size:12px;text-align:center">Loading&hellip;</p></div>';
+  h+='</div>';
 
   h+='</div>';
   return h;
