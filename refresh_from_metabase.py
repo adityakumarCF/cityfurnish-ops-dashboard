@@ -326,13 +326,15 @@ for row in rows_raw:
     elif done == 'Done' and fs and sd_ymd != fs: fsd_flag = 'False'
     else:                                         fsd_flag = 'NoFS'
 
+    if jt in EXCL_JOB_TYPES:
+        exclusion_rows.append([jt, city, cat, status, agent, sd_ymd])
+        # Excluded job types live ONLY in EXCL_ROWS_FULL — never pollute PROCESSED_EXCEL_FULL.
+        continue
+
     processed_rows.append([
         city, jt, cat, done, veh_type, agent, del_d, sd_ymd,
         trans, adh, veh_concat, oid, tkt, fs, fsd_flag
     ])
-
-    if jt in EXCL_JOB_TYPES:
-        exclusion_rows.append([jt, city, cat, status, agent, sd_ymd])
 
 print(f'[refresh] Kept {n_kept}, dropped {n_drop_future} future, {n_drop_no_sd} no-SD', flush=True)
 print(f'[refresh] Range: {min_dt} → {max_dt} | exclusion rows: {len(exclusion_rows)}', flush=True)
