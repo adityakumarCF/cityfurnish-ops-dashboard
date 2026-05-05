@@ -30,6 +30,12 @@ API_KEY       = os.environ.get('METABASE_API_KEY', '')
 DATABASE_ID   = int(os.environ.get('METABASE_DATABASE_ID', '6'))
 HTML_PATH     = os.environ.get('DASHBOARD_HTML', 'Task_Efficiency_Dashboard.html')
 
+# Zoho Desk OAuth credentials (optional — skip Zoho fetch if not set)
+ZOHO_CLIENT_ID     = os.environ.get('ZOHO_CLIENT_ID', '')
+ZOHO_CLIENT_SECRET = os.environ.get('ZOHO_CLIENT_SECRET', '')
+ZOHO_REFRESH_TOKEN = os.environ.get('ZOHO_REFRESH_TOKEN', '')
+ZOHO_ORG_ID        = os.environ.get('ZOHO_ORG_ID', '648392808')
+
 if not METABASE_URL or not API_KEY:
     print('ERROR: METABASE_URL and METABASE_API_KEY env vars required', file=sys.stderr)
     sys.exit(1)
@@ -86,6 +92,71 @@ def metabase_post(path, body=None, timeout=300):
         err_body = e.read().decode('utf-8', errors='replace')
         print(f'ERROR: HTTP {e.code} from {url}\n{err_body}', file=sys.stderr)
         raise
+
+# ─────────────────────────────────────────────────────────────
+# Zoho Desk API helpers
+# ─────────────────────────────────────────────────────────────
+def zoho_access_token():
+    """Exchange Zoho refresh token for a short-lived access token."""
+    url = 'https://accounts.zoho.in/oauth/v2/token'
+    params = (
+        f'grant_type=refresh_token'
+        f'&client_id={ZOHO_CLIENT_ID}'
+        f'&client_secret={ZOHO_CLIENT_SECRET}'
+        f'&refresh_token={ZOHO_REFRESH_TOKEN}'
+    )
+    req = urlreq.Request(url, data=params.encode('utf-8'), method='POST')
+    req.add_header('Content-Type', 'application/x-www-form-urlencoded')
+    with urlreq.urlopen(req, timeout=30) as r:
+        resp = json.loads(r.read().decode('utf-8'))
+    if 'access_token' not in resp:
+        raise ValueError(f'Zoho token refresh failed: {resp}')
+    return resp['access_token']
+
+def fetch_zoho_reasons(case_ids):
+    """Fetch reschedule reasons from Zoho Desk for the given Case IDs.
+    Returns dict keyed by ticketNumber (short) → {reason, subReason, caseId}.
+    Silently skips if Zoho credentials are not configured."""
+    if not (ZOHO_CLIENT_ID and ZOHO_CLIENT_SECRET and ZOHO_REFRESH_TOKEN):
+        print('[zoho] Credentials not set — skipping reschedule reasons', flush=True)
+        return {}
+    if not case_ids:
+        return {}
+
+    print(f'[zoho] Fetching reasons for {len(case_ids)} rescheduled tickets…', flush=True)
+    try:
+        token = zoho_access_token()
+    except Exception as e:
+        print(f'[zoho] Token refresh failed: {e}', flush=True)
+        return {}
+
+    headers = {
+        'Authorization': f'Zoho-oauthtoken {token}',
+        'orgId': ZOHO_ORG_ID,
+    }
+    reasons = {}
+    for idx, case_id in enumerate(case_ids):
+        url = f'https://desk.zoho.in/api/v1/tickets/{case_id}?include=customFields'
+        req = urlreq.Request(url, headers=headers)
+        try:
+            with urlreq.urlopen(req, timeout=30) as r:
+                ticket = json.loads(r.read().decode('utf-8'))
+            cf = ticket.get('customFields') or {}
+            tk_num = str(ticket.get('ticketNumber') or '').strip()
+            if tk_num:
+                reasons[tk_num] = {
+                    'reason':     (cf.get('Reschedule Reason') or '').strip(),
+                    'subReason':  (cf.get('Pickup Sub Reason') or cf.get('Pickup Reason') or '').strip(),
+                    'caseId':     case_id,
+                }
+        except Exception as e:
+            print(f'  [zoho] WARN ticket {case_id}: {e}', flush=True)
+        if (idx + 1) % 20 == 0:
+            print(f'  [zoho] {idx+1}/{len(case_ids)} done', flush=True)
+        time.sleep(0.15)   # ~6-7 req/s, well within Zoho's 100 req/min limit
+
+    print(f'[zoho] Done — got reasons for {len(reasons)} tickets', flush=True)
+    return reasons
 
 # ─────────────────────────────────────────────────────────────
 # Build MongoDB native pipeline (mirrors saved card 280, with dynamic dates)
@@ -340,6 +411,30 @@ print(f'[refresh] Kept {n_kept}, dropped {n_drop_future} future, {n_drop_no_sd} 
 print(f'[refresh] Range: {min_dt} → {max_dt} | exclusion rows: {len(exclusion_rows)}', flush=True)
 
 # ─────────────────────────────────────────────────────────────
+# Collect rescheduled Case IDs → fetch Zoho reasons
+# ─────────────────────────────────────────────────────────────
+CASE_ID_COL = find_col('Case ID Number', 'caseId', 'case_id')
+RESCH_COL   = find_col('rescheduledDate', 'Rescheduled Date', 'rescheduled_date')
+
+rescheduled_case_ids = []
+seen_cids = set()
+if CASE_ID_COL >= 0 and RESCH_COL >= 0:
+    # Sort rows by scheduled date descending so most-recent rescheduled go first
+    for row in sorted(raw_rows, key=lambda r: r[i['SD']] or '', reverse=True):
+        if row[RESCH_COL]:   # non-null rescheduledDate = ticket was rescheduled
+            cid = str(row[CASE_ID_COL] or '').strip()
+            if cid and cid not in seen_cids:
+                seen_cids.add(cid)
+                rescheduled_case_ids.append(cid)
+    # Cap at 250 to keep the refresh under ~40 seconds of Zoho API calls
+    if len(rescheduled_case_ids) > 250:
+        print(f'[zoho] Capping at 250 most-recent rescheduled (total: {len(rescheduled_case_ids)})', flush=True)
+        rescheduled_case_ids = rescheduled_case_ids[:250]
+print(f'[refresh] Rescheduled tickets to look up: {len(rescheduled_case_ids)}', flush=True)
+
+zoho_reasons = fetch_zoho_reasons(rescheduled_case_ids)
+
+# ─────────────────────────────────────────────────────────────
 # Build JS constants
 # ─────────────────────────────────────────────────────────────
 processed_headers = [
@@ -349,12 +444,13 @@ processed_headers = [
 ]
 exclusion_headers = ['Job Type','City','Category','Status','Agent Name','Scheduled Date']
 
-raw_js   = 'const RAW_EXCEL = '            + json.dumps({'headers':cols,'rows':raw_rows}, ensure_ascii=False, separators=(',',':')) + ';'
-proc_js  = 'const PROCESSED_EXCEL = '      + json.dumps({'headers':processed_headers,'rows':[]}, ensure_ascii=False, separators=(',',':')) + ';'
-pfull_js = 'const PROCESSED_EXCEL_FULL = ' + json.dumps({'headers':processed_headers,'rows':processed_rows}, ensure_ascii=False, separators=(',',':')) + ';'
-excl_js  = 'var EXCL_ROWS_FULL = '         + json.dumps({'headers':exclusion_headers,'rows':exclusion_rows}, ensure_ascii=False, separators=(',',':')) + ';'
+raw_js    = 'const RAW_EXCEL = '            + json.dumps({'headers':cols,'rows':raw_rows}, ensure_ascii=False, separators=(',',':')) + ';'
+proc_js   = 'const PROCESSED_EXCEL = '      + json.dumps({'headers':processed_headers,'rows':[]}, ensure_ascii=False, separators=(',',':')) + ';'
+pfull_js  = 'const PROCESSED_EXCEL_FULL = ' + json.dumps({'headers':processed_headers,'rows':processed_rows}, ensure_ascii=False, separators=(',',':')) + ';'
+excl_js   = 'var EXCL_ROWS_FULL = '         + json.dumps({'headers':exclusion_headers,'rows':exclusion_rows}, ensure_ascii=False, separators=(',',':')) + ';'
+zoho_js   = 'const ZOHO_REASONS = '         + json.dumps(zoho_reasons, ensure_ascii=False, separators=(',',':')) + ';'
 
-print(f'[refresh] JS sizes: raw={len(raw_js)/1024/1024:.2f}MB, pfull={len(pfull_js)/1024/1024:.2f}MB', flush=True)
+print(f'[refresh] JS sizes: raw={len(raw_js)/1024/1024:.2f}MB, pfull={len(pfull_js)/1024/1024:.2f}MB, zoho_reasons={len(zoho_reasons)}', flush=True)
 
 # ─────────────────────────────────────────────────────────────
 # Patch HTML
@@ -371,8 +467,9 @@ def repl_line(html, pat, new, label):
         return html
     return html[:m.start()] + new + html[m.end():]
 
-html = repl_line(html, r'^const RAW_EXCEL = \{[^\n]*\};\s*$',           raw_js,   'RAW_EXCEL')
-html = repl_line(html, r'^const PROCESSED_EXCEL = \{[^\n]*\};\s*$',     proc_js,  'PROCESSED_EXCEL')
+html = repl_line(html, r'^const ZOHO_REASONS = \{[^\n]*\};\s*$',         zoho_js,  'ZOHO_REASONS')
+html = repl_line(html, r'^const RAW_EXCEL = \{[^\n]*\};\s*$',            raw_js,   'RAW_EXCEL')
+html = repl_line(html, r'^const PROCESSED_EXCEL = \{[^\n]*\};\s*$',      proc_js,  'PROCESSED_EXCEL')
 html = repl_line(html, r'^const PROCESSED_EXCEL_FULL = \{[^\n]*\};\s*$', pfull_js, 'PROCESSED_EXCEL_FULL')
 html = repl_line(html, r'^var EXCL_ROWS_FULL = \{[^\n]*\};\s*$',         excl_js,  'EXCL_ROWS_FULL')
 

@@ -43,10 +43,14 @@ jobs:
 
       - name: Run refresh script
         env:
-          METABASE_URL:     ${{ secrets.METABASE_URL }}
-          METABASE_API_KEY: ${{ secrets.METABASE_API_KEY }}
-          METABASE_CARD_ID: ${{ secrets.METABASE_CARD_ID }}
-          DASHBOARD_HTML:   Task_Efficiency_Dashboard.html
+          METABASE_URL:       ${{ secrets.METABASE_URL }}
+          METABASE_API_KEY:   ${{ secrets.METABASE_API_KEY }}
+          METABASE_CARD_ID:   ${{ secrets.METABASE_CARD_ID }}
+          DASHBOARD_HTML:     Task_Efficiency_Dashboard.html
+          ZOHO_CLIENT_ID:     ${{ secrets.ZOHO_CLIENT_ID }}
+          ZOHO_CLIENT_SECRET: ${{ secrets.ZOHO_CLIENT_SECRET }}
+          ZOHO_REFRESH_TOKEN: ${{ secrets.ZOHO_REFRESH_TOKEN }}
+          ZOHO_ORG_ID:        ${{ secrets.ZOHO_ORG_ID }}
         run: python3 refresh_from_metabase.py
 
       - name: Commit refreshed HTML (audit trail)
