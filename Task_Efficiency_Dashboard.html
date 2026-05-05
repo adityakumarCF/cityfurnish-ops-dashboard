@@ -425,6 +425,45 @@ body.dark-mode .simplified-btn:hover{background:rgba(255,255,255,0.08)}
 .simplified-tooltip{position:absolute;top:calc(100% + 8px);right:0;background:var(--accent);color:#fff;padding:5px 12px;border-radius:100px;font-size:10px;font-weight:700;white-space:nowrap;opacity:0;pointer-events:none;transform:translateY(-4px) scale(.92);transition:opacity .2s ease,transform .2s ease;box-shadow:0 4px 12px rgba(13,148,136,0.35);z-index:200}
 .simplified-btn:hover .simplified-tooltip{opacity:1;transform:translateY(0) scale(1)}
 .report-tabs{display:flex;align-items:center}
+
+/* =============== SIMPLIFIED / EXCEL VIEW =============== */
+.sv-page{padding:20px 32px 40px;max-width:1300px;margin:0 auto}
+.sv-filter-row{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.sv-filter-label{font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap}
+.sv-export-btn{background:#1e3a5f;color:#fff;border:none;border-radius:6px;padding:7px 16px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .15s}
+.sv-export-btn:hover{background:#2a5080}
+.sv-section{margin-bottom:28px;border-radius:6px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.12);border:1px solid #c8d8e8}
+.sv-report-title{background:#1e3a5f;color:#fff;font-size:13px;font-weight:800;text-align:center;padding:10px 16px;letter-spacing:0.6px;text-transform:uppercase}
+.sv-report-subtitle{background:#2a5080;color:#c8ddf5;font-size:10px;text-align:center;padding:5px 16px;font-style:italic}
+.sv-kpi-grid{display:grid;gap:0;background:#fff}
+.sv-kpi-cell{display:flex;flex-direction:column;border-right:1px solid #c8d8e8;border-bottom:1px solid #c8d8e8}
+.sv-kpi-cell:last-child{border-right:none}
+.sv-kpi-hdr{font-size:9px;font-weight:700;color:#1e3a5f;background:#ddeef8;padding:5px 8px;text-align:center;letter-spacing:0.3px;text-transform:uppercase;border-bottom:1px solid #c8d8e8}
+.sv-kpi-val{font-size:20px;font-weight:800;padding:10px 8px;text-align:center}
+.sv-kpi-band{border-top:1px solid #c8d8e8}
+.sv-section-title{background:#2e5fa3;color:#fff;font-size:11px;font-weight:700;text-align:center;padding:7px 16px;text-transform:uppercase;letter-spacing:0.5px}
+.sv-sep{height:6px;background:var(--bg,#f8fafc)}
+.sv-table{width:100%;border-collapse:collapse;font-size:11px}
+.sv-table th{background:#3a6eb0;color:#fff;font-weight:700;padding:7px 10px;text-align:center;border:1px solid #2e5a9a;white-space:nowrap}
+.sv-table th.sv-thl{text-align:left}
+.sv-table td{padding:6px 10px;text-align:center;border:1px solid #ccd8e8;background:#fff}
+.sv-table td.sv-tdl{text-align:left;font-weight:600}
+.sv-table tr:nth-child(even) td{background:#f2f7fc}
+.sv-table .sv-tot td{background:#d4e8f8;font-weight:700;border-top:2px solid #3a6eb0}
+.sv-table .sv-cat-hdr td{background:#2e5fa3;color:#fff;font-weight:700;padding:5px 10px}
+.sv-table .sv-spacer td{height:4px;background:rgba(180,210,240,0.25);border:none}
+.sv-g{color:#16a34a;font-weight:700}
+.sv-r{color:#dc2626;font-weight:700}
+.sv-o{color:#ea580c;font-weight:700}
+body.dark-mode .sv-section{border-color:#2a3a4a;box-shadow:0 2px 10px rgba(0,0,0,0.4)}
+body.dark-mode .sv-kpi-grid,.sv-table td,.sv-table tr:nth-child(even) td{background:var(--card,#1a2535)}
+body.dark-mode .sv-kpi-hdr{background:#1a3050;color:#90bfe0}
+body.dark-mode .sv-kpi-cell{border-color:#2a3a4a}
+body.dark-mode .sv-table{background:var(--card,#1a2535)}
+body.dark-mode .sv-table td{background:var(--card,#1a2535);border-color:#2a3a4a;color:var(--text)}
+body.dark-mode .sv-table tr:nth-child(even) td{background:var(--card2,#1f2e40)}
+body.dark-mode .sv-table .sv-tot td{background:#1e3050}
+body.dark-mode .sv-sep{background:var(--bg,#0a1410)}
 </style>
 </head>
 <body>
@@ -982,8 +1021,17 @@ document.addEventListener('keydown',function(ev){
 
 <!-- ===================== SIMPLIFIED VIEW PAGE ===================== -->
 <div class="report-page" id="page-simplified">
-  <div style="text-align:center;padding:80px 20px">
-    <div style="font-size:46px;margin-bottom:14px">&#9776;</div>
+  <div class="sv-page">
+    <div class="sv-filter-row">
+      <span class="sv-filter-label">Cities:</span>
+      <div id="filter-simplified" style="display:contents"></div>
+      <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+        <button class="sv-export-btn" onclick="exportSimplifiedExcel()">&#8595; Export Excel</button>
+      </div>
+    </div>
+    <div id="sv-content"></div>
+  </div>
+</div>
     <h2 style="color:var(--text);margin:0 0 10px;font-size:22px">Simplified View</h2>
     <p style="color:var(--muted);font-size:14px;max-width:420px;margin:0 auto">This view is reserved for a streamlined version of the dashboard. Content will be added soon.</p>
   </div>
@@ -2036,7 +2084,7 @@ const TAT_RAW = {"city":[],"job":[],"cityJobData":{},"category":[],"status":[]};
 const TRIP = {"orderKPI":{"total_orders":0,"single_trip":0,"multi_trip":0,"pct_single":0,"waste_trips":0,"sr_after_delivery":0,"po_payment":0,"total_rows":0},"ticketKPI":{"total_tickets":0,"single_trip":0,"multi_trip":0,"pct_single":0,"waste_trips":0,"avg_trips":0},"orderDist":[],"ticketDist":[],"cityAnalysis":[],"multiOrderDetail":[],"multiTicketDetail":[],"jobAnalysis":[],"srAfterDelivery":{"total_orders":0,"type_breakdown":[],"city_breakdown":[]},"unlinkedSRs":{"total_rows":0,"unique_tickets":0}};
 
 // ==================== MULTI-SELECT CITY STATE ====================
-const citySelection = {task:new Set(ALL_CITIES),fad:new Set(ALL_CITIES),fsd:new Set(ALL_CITIES),tat:new Set(ALL_CITIES),trip:new Set(ALL_CITIES),overview:new Set(ALL_CITIES),action:new Set(ALL_CITIES)};
+const citySelection = {task:new Set(ALL_CITIES),fad:new Set(ALL_CITIES),fsd:new Set(ALL_CITIES),tat:new Set(ALL_CITIES),trip:new Set(ALL_CITIES),overview:new Set(ALL_CITIES),action:new Set(ALL_CITIES),simplified:new Set(ALL_CITIES)};
 
 function getSelectedCities(report){return [...citySelection[report]];}
 function isAllSelected(report){return citySelection[report].size===ALL_CITIES.length;}
@@ -2075,6 +2123,7 @@ function rerender(report){
   if(report==='kpitrend') renderKpiTrendPage();
   setTimeout(addExportButtons,50);
   if(report==='action') anApplyFilters();
+  if(report==='simplified') renderSimplifiedView();
 }
 
 // ==================== KPI TREND ====================
@@ -2597,12 +2646,520 @@ function switchReport(id,el){
 }
 
 function switchToSimplifiedView(btn){
-  document.querySelectorAll('.report-page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.report-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.report-page').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.report-tab').forEach(function(t){t.classList.remove('active');});
   if(btn) btn.classList.add('active');
   var page=document.getElementById('page-simplified');
   if(page) page.classList.add('active');
+  renderSimplifiedView();
 }
+
+// ==================== SIMPLIFIED / EXCEL VIEW ====================
+
+function svDateLabel(){
+  try{
+    var r=resolveCurrentRange('task');
+    if(r&&r.end){
+      var s=String(r.end);
+      var d=new Date(s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8));
+      return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase();
+    }
+  }catch(e){}
+  var el=document.querySelector('.date-badge');
+  return el?el.textContent.replace('Data:','').trim():'';
+}
+
+function svCls(val,thr,higherBetter){
+  if(thr==null) return '';
+  higherBetter=higherBetter!==false;
+  return (higherBetter?val>=thr:val<=thr)?'sv-g':(Math.abs(val-thr)/Math.max(thr,1)<0.15?'sv-o':'sv-r');
+}
+
+function svKpiRow(kpis){
+  var cols=kpis.length;
+  var h='<div class="sv-kpi-grid sv-kpi-band" style="grid-template-columns:repeat('+cols+',1fr)">';
+  kpis.forEach(function(k){
+    h+='<div class="sv-kpi-cell"><div class="sv-kpi-hdr">'+k.l+'</div>';
+    h+='<div class="sv-kpi-val'+(k.c?' '+k.c:'')+'">'+k.v+'</div></div>';
+  });
+  h+='</div>';
+  return h;
+}
+
+function renderSimplifiedView(){
+  renderFilterBar('filter-simplified','simplified');
+  var cities=getSelectedCities('simplified');
+  var dateLabel=svDateLabel();
+  var html='';
+  html+=svRenderTrip(cities,dateLabel);
+  html+=svRenderFad(cities,dateLabel);
+  html+=svRenderFsd(cities,dateLabel);
+  html+=svRenderTat(cities,dateLabel);
+  document.getElementById('sv-content').innerHTML=html;
+}
+
+/* ── SECTION 1: Trip Efficiency ── */
+function svRenderTrip(cities,dateLabel){
+  var citySet=new Set(cities);
+  var cityData=TRIP.cityAnalysis.filter(function(c){return citySet.has(c.city);});
+  var filtOrd=TRIP.multiOrderDetail.filter(function(m){return citySet.has(m.city);});
+  var filtTick=TRIP.multiTicketDetail.filter(function(m){return citySet.has(m.city);});
+
+  var tOrd=cityData.reduce(function(s,c){return s+c.total_orders;},0);
+  var tSing=cityData.reduce(function(s,c){return s+c.single_trip;},0);
+  var tMul=cityData.reduce(function(s,c){return s+c.multi_trip;},0);
+  var tWaste=cityData.reduce(function(s,c){return s+c.waste_trips;},0);
+  var tSRAD=cityData.reduce(function(s,c){return s+c.sr_after_del;},0);
+  var tTrips=cityData.reduce(function(s,c){return s+c.total_trips;},0);
+  var pctSing=tOrd?(tSing/tOrd*100).toFixed(1):'0.0';
+
+  // Ticket KPIs
+  var tTick=filtTick.length;
+  var tTickSing=filtTick.filter(function(t){return !t.waste||t.waste===0;}).length;
+  var tTickMul=filtTick.filter(function(t){return t.waste>0;}).length;
+  var tTickWaste=filtTick.reduce(function(s,t){return s+(t.waste||0);},0);
+  var pctTickSing=tTick?(tTickSing/tTick*100).toFixed(1):'0.0';
+  var avgTripsTick=tTick?(tTrips/tTick).toFixed(2):'0.00';
+
+  // Order Distribution (computed from filtered orders)
+  var ordMap={};
+  filtOrd.forEach(function(o){
+    var k=o.total_trips;
+    if(!ordMap[k]) ordMap[k]={trips:k,count:0,total_used:0,waste:0};
+    ordMap[k].count++;
+    ordMap[k].total_used+=o.total_trips;
+    ordMap[k].waste+=(o.waste||0);
+  });
+  var ordDist=Object.values(ordMap).sort(function(a,b){return a.trips-b.trips;});
+
+  // Ticket Distribution
+  var tickMap={};
+  filtTick.forEach(function(t){
+    var k=t.total_trips||1;
+    if(!tickMap[k]) tickMap[k]={trips:k,count:0,total_used:0,waste:0};
+    tickMap[k].count++;
+    tickMap[k].total_used+=k;
+    tickMap[k].waste+=(t.waste||0);
+  });
+  var tickDist=Object.values(tickMap).sort(function(a,b){return a.trips-b.trips;});
+
+  var h='<div class="sv-section">';
+  h+='<div class="sv-report-title">TASK EFFICIENCY &amp; WASTE ANALYSIS REPORT &mdash; '+dateLabel+'</div>';
+  h+='<div class="sv-report-subtitle">Ideal: 1 Trip per Delivery/Pickup &nbsp;|&nbsp; 0 SRs after delivery &nbsp;|&nbsp; Every extra trip = waste cost &amp; time</div>';
+
+  var pS=parseFloat(pctSing);
+  h+=svKpiRow([
+    {l:'Total Unique Orders',v:tOrd,c:''},
+    {l:'Single-Trip Orders',v:tSing,c:'sv-g'},
+    {l:'Multi-Trip Orders',v:tMul,c:tMul>0?'sv-r':'sv-g'},
+    {l:'% Single Trip',v:pctSing+'%',c:pS>=80?'sv-g':pS>=60?'sv-o':'sv-r'},
+    {l:'Total Waste Trips',v:tWaste,c:tWaste>0?'sv-r':'sv-g'},
+    {l:'SRs After Delivery',v:tSRAD,c:tSRAD>0?'sv-o':'sv-g'},
+    {l:'Total Rows (Trips)',v:tTrips,c:''},
+  ]);
+  h+='<div class="sv-sep"></div>';
+  var pTS=parseFloat(pctTickSing);
+  h+=svKpiRow([
+    {l:'Total Unique Tickets',v:tTick,c:''},
+    {l:'Single-Trip Tickets',v:tTickSing,c:'sv-g'},
+    {l:'Multi-Trip Tickets',v:tTickMul,c:tTickMul>0?'sv-r':'sv-g'},
+    {l:'% Single Trip',v:pctTickSing+'%',c:pTS>=80?'sv-g':pTS>=60?'sv-o':'sv-r'},
+    {l:'Ticket Waste Trips',v:tTickWaste,c:tTickWaste>0?'sv-r':'sv-g'},
+    {l:'Avg Trips / Ticket',v:avgTripsTick,c:parseFloat(avgTripsTick)<=1.05?'sv-g':'sv-r'},
+  ]);
+
+  // Order Distribution table
+  h+='<div class="sv-sep"></div><div class="sv-section-title">ORDER ID &mdash; TRIP DISTRIBUTION</div>';
+  h+='<table class="sv-table"><thead><tr>';
+  h+='<th class="sv-thl">Trips per Order</th><th>Count of Orders</th><th>% of Total</th><th>Cumulative %</th><th>Total Trips Used</th><th>Waste Trips</th>';
+  h+='</tr></thead><tbody>';
+  var cumOPct=0,totOUsed=0,totOWaste=0;
+  ordDist.forEach(function(d){
+    var pct=tOrd?(d.count/tOrd*100):0; cumOPct+=pct;
+    totOUsed+=d.total_used; totOWaste+=d.waste;
+    h+='<tr><td class="sv-tdl">'+d.trips+' Trip'+(d.trips>1?'s':'')+(d.waste===0?' ✓':'')+'</td>';
+    h+='<td>'+d.count+'</td><td>'+pct.toFixed(1)+'%</td><td>'+Math.min(cumOPct,100).toFixed(1)+'%</td>';
+    h+='<td>'+d.total_used+'</td><td class="'+(d.waste>0?'sv-r':'')+'">'+d.waste+'</td></tr>';
+  });
+  h+='<tr class="sv-tot"><td class="sv-tdl">TOTAL</td><td>'+tOrd+'</td><td>100.0%</td><td></td>';
+  h+='<td>'+totOUsed+'</td><td class="'+(totOWaste>0?'sv-r':'')+'">'+totOWaste+'</td></tr>';
+  h+='</tbody></table>';
+
+  // Ticket Distribution table
+  h+='<div class="sv-sep"></div><div class="sv-section-title">TICKET NUMBER &mdash; TRIP DISTRIBUTION</div>';
+  h+='<table class="sv-table"><thead><tr>';
+  h+='<th class="sv-thl">Trips per Ticket</th><th>Count of Tickets</th><th>% of Total</th><th>Cumulative %</th><th>Total Trips Used</th><th>Waste Trips</th>';
+  h+='</tr></thead><tbody>';
+  var cumTPct=0,totTUsed=0,totTWaste=0;
+  tickDist.forEach(function(d){
+    var pct=tTick?(d.count/tTick*100):0; cumTPct+=pct;
+    totTUsed+=d.total_used; totTWaste+=d.waste;
+    h+='<tr><td class="sv-tdl">'+d.trips+' Trip'+(d.trips>1?'s':'')+(d.waste===0?' ✓':'')+'</td>';
+    h+='<td>'+d.count+'</td><td>'+pct.toFixed(1)+'%</td><td>'+Math.min(cumTPct,100).toFixed(1)+'%</td>';
+    h+='<td>'+d.total_used+'</td><td class="'+(d.waste>0?'sv-r':'')+'">'+d.waste+'</td></tr>';
+  });
+  h+='<tr class="sv-tot"><td class="sv-tdl">TOTAL</td><td>'+tTick+'</td><td>100.0%</td><td></td>';
+  h+='<td>'+totTUsed+'</td><td class="'+(totTWaste>0?'sv-r':'')+'">'+totTWaste+'</td></tr>';
+  h+='</tbody></table>';
+
+  // City-wise table
+  h+='<div class="sv-sep"></div><div class="sv-section-title">CITY-WISE TRIP EFFICIENCY &amp; VEHICLE ANALYSIS</div>';
+  h+='<table class="sv-table"><thead><tr><th class="sv-thl">City</th><th>Total Orders</th><th>Single-Trip</th><th>Multi-Trip</th><th>% Single Trip</th><th>Waste Trips</th><th>Total Trips</th></tr></thead><tbody>';
+  cityData.forEach(function(c){
+    var p=c.total_orders?(c.single_trip/c.total_orders*100):0;
+    var pc=p>=80?'sv-g':p>=60?'sv-o':'sv-r';
+    h+='<tr><td class="sv-tdl">'+c.city+'</td><td>'+c.total_orders+'</td><td>'+c.single_trip+'</td>';
+    h+='<td>'+c.multi_trip+'</td><td class="'+pc+'">'+p.toFixed(1)+'%</td>';
+    h+='<td class="'+(c.waste_trips>0?'sv-r':'')+'">'+c.waste_trips+'</td><td>'+c.total_trips+'</td></tr>';
+  });
+  var totP=tOrd?(tSing/tOrd*100):0;
+  h+='<tr class="sv-tot"><td class="sv-tdl">TOTAL</td><td>'+tOrd+'</td><td>'+tSing+'</td><td>'+tMul+'</td>';
+  h+='<td class="'+(totP>=80?'sv-g':totP>=60?'sv-o':'sv-r')+'">'+totP.toFixed(1)+'%</td>';
+  h+='<td class="'+(tWaste>0?'sv-r':'')+'">'+tWaste+'</td><td>'+tTrips+'</td></tr>';
+  h+='</tbody></table>';
+
+  // Job type table
+  var jd=TRIP.jobAnalysis;
+  h+='<div class="sv-sep"></div><div class="sv-section-title">JOB TYPE-WISE TRIP EFFICIENCY</div>';
+  h+='<table class="sv-table"><thead><tr><th class="sv-thl">Job Type</th><th>Total Trips (Rows)</th><th>Unique Tickets</th><th>Avg Trips / Ticket</th><th>Waste Trips</th><th>Regular</th><th>Ad-hoc</th></tr></thead><tbody>';
+  jd.forEach(function(j){
+    var ac=j.avg_trips_ticket>1.2?'sv-r':j.avg_trips_ticket>1.05?'sv-o':'sv-g';
+    h+='<tr><td class="sv-tdl">'+j.job_type+'</td><td>'+j.total_trips+'</td><td>'+j.unique_tickets+'</td>';
+    h+='<td class="'+ac+'">'+j.avg_trips_ticket.toFixed(2)+'</td>';
+    h+='<td class="'+(j.waste_trips>0?'sv-r':'')+'">'+j.waste_trips+'</td>';
+    h+='<td>'+j.regular+'</td><td>'+j.adhoc+'</td></tr>';
+  });
+  var jTT=jd.reduce(function(s,j){return s+j.total_trips;},0);
+  var jTTi=jd.reduce(function(s,j){return s+j.unique_tickets;},0);
+  var jTW=jd.reduce(function(s,j){return s+j.waste_trips;},0);
+  var jTR=jd.reduce(function(s,j){return s+j.regular;},0);
+  var jTA=jd.reduce(function(s,j){return s+j.adhoc;},0);
+  var jAv=jTTi?(jTT/jTTi).toFixed(2):'0.00';
+  h+='<tr class="sv-tot"><td class="sv-tdl">TOTAL</td><td>'+jTT+'</td><td>'+jTTi+'</td>';
+  h+='<td>'+jAv+'</td><td class="'+(jTW>0?'sv-r':'')+'">'+jTW+'</td><td>'+jTR+'</td><td>'+jTA+'</td></tr>';
+  h+='</tbody></table>';
+  h+='</div>';
+  return h;
+}
+
+/* ── SECTION 2: FAD ── */
+function svRenderFad(cities,dateLabel){
+  var citySet=new Set(cities);
+  var dataCities=cities.filter(function(c){
+    return FAD.categories.some(function(cat){return FAD.fad[cat]&&FAD.fad[cat][c];});
+  });
+  var cats=FAD.categories;
+  var thr=(dataCities.length&&FAD.vehicle[dataCities[0]])?FAD.vehicle[dataCities[0]].threshold:6;
+
+  var h='<div class="sv-section">';
+  h+='<div class="sv-report-title">'+dateLabel+'</div>';
+  h+='<div class="sv-section-title">FAD BY JOB TYPE &times; CITY</div>';
+  h+='<table class="sv-table"><thead><tr><th class="sv-thl">Job Type</th><th>Metric</th>';
+  dataCities.forEach(function(c){h+='<th>'+c+'</th>';});
+  h+='<th>Total</th></tr></thead><tbody>';
+
+  cats.forEach(function(cat,ci){
+    var span=2+dataCities.length+1;
+    h+='<tr class="sv-cat-hdr"><td colspan="'+span+'">'+cat+'</td></tr>';
+    var totA=0,totD=0,totF=0;
+    dataCities.forEach(function(c){
+      var d=(FAD.fad[cat]&&FAD.fad[cat][c])||{assigned:0,done:0,fad:0};
+      totA+=d.assigned;totD+=d.done;totF+=d.fad;
+    });
+    var totPct=totA?(totF/totA*100):0;
+
+    // Total Assigned
+    h+='<tr><td></td><td class="sv-tdl">Total Assigned</td>';
+    dataCities.forEach(function(c){var d=(FAD.fad[cat]&&FAD.fad[cat][c])||{assigned:0};h+='<td>'+d.assigned+'</td>';});
+    h+='<td>'+totA+'</td></tr>';
+    // Total Done
+    h+='<tr><td></td><td class="sv-tdl">Total Done</td>';
+    dataCities.forEach(function(c){var d=(FAD.fad[cat]&&FAD.fad[cat][c])||{done:0};h+='<td>'+d.done+'</td>';});
+    h+='<td>'+totD+'</td></tr>';
+    // FAD (Trip=1)
+    h+='<tr><td></td><td class="sv-tdl">FAD (Trip=1)</td>';
+    dataCities.forEach(function(c){var d=(FAD.fad[cat]&&FAD.fad[cat][c])||{fad:0};h+='<td>'+d.fad+'</td>';});
+    h+='<td>'+totF+'</td></tr>';
+    // %Age
+    h+='<tr><td></td><td class="sv-tdl">%Age</td>';
+    dataCities.forEach(function(c){
+      var d=(FAD.fad[cat]&&FAD.fad[cat][c])||{assigned:0,fad:0};
+      var p=d.assigned?(d.fad/d.assigned*100):0;
+      var pc=p>=75?'sv-g':p>=50?'sv-o':'sv-r';
+      h+='<td class="'+pc+'">'+p.toFixed(1)+'%</td>';
+    });
+    var tc=totPct>=75?'sv-g':totPct>=50?'sv-o':'sv-r';
+    h+='<td class="'+tc+'">'+totPct.toFixed(1)+'%</td></tr>';
+    if(ci<cats.length-1) h+='<tr class="sv-spacer"><td colspan="'+span+'"></td></tr>';
+  });
+  h+='</tbody></table>';
+
+  // Vehicle Efficiency
+  h+='<div class="sv-sep"></div>';
+  h+='<div class="sv-section-title">VEHICLE EFFICIENCY &mdash; DONE vs FAD (Benchmark: &ge;'+thr+')</div>';
+  h+='<table class="sv-table"><thead><tr><th class="sv-thl">Metric</th>';
+  dataCities.forEach(function(c){h+='<th>'+c+'</th>';});
+  h+='<th>Total</th></tr></thead><tbody>';
+
+  var vTR=0,vTA=0,vTV=0,vTD=0,vTF=0,vTDays=0;
+  dataCities.forEach(function(c){
+    var v=FAD.vehicle[c]||{};
+    vTR+=v.regular||0;vTA+=v.adhoc||0;vTV+=v.total_vehicles||0;
+    vTD+=v.total_done||0;vTF+=v.fad_count||0;
+    vTDays+=v.vehicle_days||v.total_vehicles||0;
+  });
+  var vTDE=vTDays?(vTD/vTDays).toFixed(2):'0.00';
+  var vTFE=vTDays?(vTF/vTDays).toFixed(2):'0.00';
+
+  function vRow(label,getCityVal,totVal,isThr,isFlag){
+    h+='<tr><td class="sv-tdl">'+label+'</td>';
+    dataCities.forEach(function(c){
+      var v=FAD.vehicle[c]||{};
+      var val=getCityVal(v);
+      var cls='';
+      if(isFlag) cls=val==='✓'?'sv-g':'sv-r';
+      else if(isThr) cls=parseFloat(val)>=thr?'sv-g':parseFloat(val)>=thr*0.85?'sv-o':'sv-r';
+      h+='<td class="'+cls+'">'+val+'</td>';
+    });
+    var tCls='';
+    if(isFlag) tCls=totVal==='✓'?'sv-g':'sv-r';
+    else if(isThr) tCls=parseFloat(totVal)>=thr?'sv-g':parseFloat(totVal)>=thr*0.85?'sv-o':'sv-r';
+    h+='<td class="'+tCls+'">'+totVal+'</td></tr>';
+  }
+
+  vRow('Reg Vehicles',function(v){return v.regular||0;},vTR,false,false);
+  vRow('Ad-hoc Vehicles',function(v){return v.adhoc||0;},vTA,false,false);
+  vRow('Total Vehicles',function(v){return v.total_vehicles||0;},vTV,false,false);
+  vRow('Total Done',function(v){return v.total_done||0;},vTD,false,false);
+  vRow('Done Eff',function(v){var d=v.vehicle_days||v.total_vehicles||0;return d?(v.total_done/d).toFixed(2):'0.00';},vTDE,true,false);
+  vRow('Done Flag',function(v){var d=v.vehicle_days||v.total_vehicles||0;return d&&(v.total_done/d)>=thr?'✓':'⊗';},parseFloat(vTDE)>=thr?'✓':'⊗',false,true);
+  vRow('FAD Count',function(v){return v.fad_count||0;},vTF,false,false);
+  vRow('FAD Eff',function(v){var d=v.vehicle_days||v.total_vehicles||0;return d?(v.fad_count/d).toFixed(2):'0.00';},vTFE,true,false);
+  vRow('FAD Flag',function(v){var d=v.vehicle_days||v.total_vehicles||0;return d&&(v.fad_count/d)>=thr?'✓':'⊗';},parseFloat(vTFE)>=thr?'✓':'⊗',false,true);
+
+  h+='</tbody></table>';
+  h+='</div>';
+  return h;
+}
+
+/* ── SECTION 3: FSD ── */
+function svRenderFsd(cities,dateLabel){
+  var dataCities=cities.filter(function(c){
+    return FSD.categories.some(function(cat){return FSD.fsd[cat]&&FSD.fsd[cat][c];});
+  });
+  var cats=FSD.categories;
+
+  var h='<div class="sv-section">';
+  h+='<div class="sv-report-title">'+dateLabel+'</div>';
+  h+='<div class="sv-section-title">FSD BY JOB TYPE &times; CITY</div>';
+  h+='<table class="sv-table"><thead><tr><th class="sv-thl">Job Type</th><th>Metric</th>';
+  dataCities.forEach(function(c){h+='<th>'+c+'</th>';});
+  h+='<th>Total</th></tr></thead><tbody>';
+
+  cats.forEach(function(cat,ci){
+    var span=2+dataCities.length+1;
+    h+='<tr class="sv-cat-hdr"><td colspan="'+span+'">'+cat+'</td></tr>';
+    var totT=0,totF=0,totN=0,totAll=0;
+    dataCities.forEach(function(c){
+      var d=(FSD.fsd[cat]&&FSD.fsd[cat][c])||{true_c:0,false_c:0,nofs:0,total:0};
+      totT+=d.true_c;totF+=d.false_c;totN+=d.nofs;totAll+=d.total;
+    });
+    var totPct=totAll?(totT/totAll*100):0;
+
+    function fsdMetricRow(label,getFn,getTot,colorFn){
+      h+='<tr><td></td><td class="sv-tdl">'+label+'</td>';
+      dataCities.forEach(function(c){
+        var d=(FSD.fsd[cat]&&FSD.fsd[cat][c])||{true_c:0,false_c:0,nofs:0,total:0};
+        var val=getFn(d);
+        var cls=colorFn?colorFn(d,val):'';
+        h+='<td class="'+cls+'">'+val+'</td>';
+      });
+      var tc=colorFn?colorFn(null,getTot):'';
+      h+='<td class="'+tc+'">'+getTot+'</td></tr>';
+    }
+
+    fsdMetricRow('TRUE',function(d){return d.true_c;},totT,null);
+    fsdMetricRow('FALSE',function(d){return d.false_c;},totF,null);
+    fsdMetricRow('No FS Date',function(d){return d.nofs;},totN,null);
+    fsdMetricRow('Total',function(d){return d.total;},totAll,null);
+    fsdMetricRow('True%',
+      function(d){var p=d.total?(d.true_c/d.total*100):0;return p.toFixed(1)+'%';},
+      totPct.toFixed(1)+'%',
+      function(d,val){var p=parseFloat(val);return p>=60?'sv-g':p>=40?'sv-o':'sv-r';}
+    );
+    if(ci<cats.length-1) h+='<tr class="sv-spacer"><td colspan="'+span+'"></td></tr>';
+  });
+  h+='</tbody></table>';
+
+  // Vehicle FSD Efficiency
+  h+='<div class="sv-sep"></div>';
+  h+='<div class="sv-section-title">VEHICLE FSD EFFICIENCY</div>';
+  h+='<table class="sv-table"><thead><tr><th class="sv-thl">Metric</th>';
+  dataCities.forEach(function(c){h+='<th>'+c+'</th>';});
+  h+='<th>Total</th></tr></thead><tbody>';
+
+  var vTVeh=0,vTSched=0,vTFsdTrue=0,vTDone=0,vTDays2=0;
+  dataCities.forEach(function(c){
+    var v=FSD.vehicle[c]||{};
+    vTVeh+=v.total_vehicles||0;vTSched+=v.sched||0;vTFsdTrue+=v.fsd_true||0;
+    vTDone+=v.total_done||0;vTDays2+=v.vehicle_days||v.total_vehicles||0;
+  });
+  var vTFsdPct=vTSched?(vTFsdTrue/vTSched*100).toFixed(1):'0.0';
+  var vTDoneEff=vTDays2?(vTDone/vTDays2).toFixed(2):'0.00';
+  var vTFsdEff=vTDays2?(vTFsdTrue/vTDays2).toFixed(2):'0.00';
+  var fsdThr=(dataCities.length&&FSD.vehicle[dataCities[0]])?FSD.vehicle[dataCities[0]].threshold:6;
+
+  function fsdVRow(label,getCityVal,totVal,thr2){
+    h+='<tr><td class="sv-tdl">'+label+'</td>';
+    dataCities.forEach(function(c){
+      var v=FSD.vehicle[c]||{};
+      var val=getCityVal(v);
+      var cls=thr2!=null?(parseFloat(val)>=thr2?'sv-g':parseFloat(val)>=thr2*0.85?'sv-o':'sv-r'):'';
+      h+='<td class="'+cls+'">'+val+'</td>';
+    });
+    var tc=thr2!=null?(parseFloat(totVal)>=thr2?'sv-g':parseFloat(totVal)>=thr2*0.85?'sv-o':'sv-r'):'';
+    h+='<td class="'+tc+'">'+totVal+'</td></tr>';
+  }
+
+  fsdVRow('Total Vehicles',function(v){return v.total_vehicles||0;},vTVeh,null);
+  fsdVRow('Sched Tasks',function(v){return v.sched||0;},vTSched,null);
+  fsdVRow('FSD TRUE Count',function(v){return v.fsd_true||0;},vTFsdTrue,null);
+  fsdVRow('FSD True%',function(v){var s=v.sched||0;return s?(v.fsd_true/s*100).toFixed(1)+'%':'0.0%';},vTFsdPct+'%',null);
+  fsdVRow('Done Eff',function(v){var d=v.vehicle_days||v.total_vehicles||0;return d?(v.total_done/d).toFixed(2):'0.00';},vTDoneEff,fsdThr);
+  fsdVRow('FSD Eff (TRUE/Veh)',function(v){var d=v.vehicle_days||v.total_vehicles||0;return d?(v.fsd_true/d).toFixed(2):'0.00';},vTFsdEff,fsdThr);
+
+  h+='</tbody></table>';
+  h+='</div>';
+  return h;
+}
+
+/* ── SECTION 4: TAT ── */
+function svRenderTat(cities,dateLabel){
+  var citySet=new Set(cities);
+  var filtCity=TAT_RAW.city.filter(function(c){return citySet.has(c.name);});
+
+  var totDone=filtCity.reduce(function(s,c){return s+c.done;},0);
+  var totWithin=filtCity.reduce(function(s,c){return s+c.within;},0);
+  var totBreach=filtCity.reduce(function(s,c){return s+c.breach;},0);
+  var totResch=filtCity.reduce(function(s,c){return s+c.resch;},0);
+  var totCases=filtCity.reduce(function(s,c){return s+c.total;},0);
+  var pctWithin=totDone?+(totWithin/totDone*100).toFixed(1):0;
+  var avgTat=totDone?+(filtCity.reduce(function(s,c){return s+c.avg*c.done;},0)/totDone).toFixed(2):0;
+
+  var h='<div class="sv-section">';
+  h+='<div class="sv-report-title">TAT PERFORMANCE DASHBOARD &mdash; '+dateLabel+'</div>';
+  h+='<div class="sv-report-subtitle">TAT = Scheduled Date &minus; Case Assigned Date &nbsp;|&nbsp; Target: &le; 3 Days</div>';
+
+  var pw=pctWithin;
+  h+=svKpiRow([
+    {l:'Total Scheduled',v:totCases,c:''},
+    {l:'Tasks Done',v:totDone,c:'sv-g'},
+    {l:'Within TAT',v:totWithin,c:'sv-g'},
+    {l:'TAT Breach',v:totBreach,c:totBreach>0?'sv-r':'sv-g'},
+    {l:'% Within TAT',v:pw.toFixed(1)+'%',c:pw>=75?'sv-g':pw>=50?'sv-o':'sv-r'},
+    {l:'Avg TAT (Days)',v:avgTat,c:avgTat<=3?'sv-g':avgTat<=5?'sv-o':'sv-r'},
+    {l:'Rescheduled',v:totResch,c:totResch>0?'sv-o':'sv-g'},
+  ]);
+
+  // TAT table helper
+  function tatTable(title,rows,cols){
+    var h2='<div class="sv-sep"></div><div class="sv-section-title">'+title+'</div>';
+    h2+='<table class="sv-table"><thead><tr>';
+    cols.forEach(function(c,i){h2+='<th'+(i===0?' class="sv-thl"':'')+'>'+c+'</th>';});
+    h2+='</tr></thead><tbody>';
+    rows.forEach(function(r){
+      h2+='<tr>';
+      r.forEach(function(cell,i){
+        var cls=cell&&cell.cls?cell.cls:'';
+        var v=cell&&cell.v!==undefined?cell.v:cell;
+        h2+='<td'+(i===0?' class="sv-tdl"':cls?' class="'+cls+'"':'')+'>'+v+'</td>';
+      });
+      h2+='</tr>';
+    });
+    h2+='</tbody></table>';
+    return h2;
+  }
+
+  function pRow(c){ var p=c.done?(c.within/c.done*100):0; return p>=75?'sv-g':p>=50?'sv-o':'sv-r'; }
+  function aRow(c){ return c.avg<=3?'sv-g':c.avg<=5?'sv-o':'sv-r'; }
+
+  // City-wise
+  var cityRows=filtCity.map(function(c){
+    var p=c.done?(c.within/c.done*100):0;
+    return [c.name,c.done,c.within,c.breach,
+      {v:p.toFixed(1)+'%',cls:pRow(c)},
+      {v:(+c.avg).toFixed(1),cls:aRow(c)},
+      c.resch,
+      (c.total?(c.resch/c.total*100):0).toFixed(1)+'%'];
+  });
+  var cityTotP=totDone?(totWithin/totDone*100):0;
+  cityRows.push([{v:'TOTAL',cls:'sv-tot sv-tdl'},
+    {v:totDone,cls:'sv-tot'},{v:totWithin,cls:'sv-tot'},{v:totBreach,cls:'sv-tot'},
+    {v:cityTotP.toFixed(1)+'%',cls:'sv-tot '+(cityTotP>=75?'sv-g':cityTotP>=50?'sv-o':'sv-r')},
+    {v:avgTat,cls:'sv-tot '+(avgTat<=3?'sv-g':avgTat<=5?'sv-o':'sv-r')},
+    {v:totResch,cls:'sv-tot'},{v:'',cls:'sv-tot'}]);
+  h+=tatTable('CITY-WISE TAT PERFORMANCE &mdash; '+dateLabel,cityRows,
+    ['City','Tasks Done','Within TAT','TAT Breach','% Within TAT','Avg TAT (Days)','Rescheduled','Resch Rate']);
+
+  // Job type-wise (aggregate from cityJobData for selected cities)
+  var jobMap={};
+  cities.forEach(function(city){
+    var rows=(TAT_RAW.cityJobData&&TAT_RAW.cityJobData[city])||[];
+    rows.forEach(function(row){
+      var k=row.name;
+      if(!jobMap[k]) jobMap[k]={name:k,done:0,within:0,breach:0,resch:0,_wadone:0,_cases:0};
+      var m=jobMap[k];
+      m.done+=row.done;m.within+=row.within;m.breach+=row.breach;m.resch+=row.resch;
+      m._wadone+=row.avg*row.done;m._cases+=(row.done+row.breach);
+    });
+  });
+  var jobRows=Object.values(jobMap).map(function(m){
+    var p=m.done?(m.within/m.done*100):0;
+    var av=m.done?(m._wadone/m.done).toFixed(1):0;
+    var rr=m._cases?(m.resch/m._cases*100):0;
+    return [m.name,m.done,m.within,m.breach,
+      {v:p.toFixed(1)+'%',cls:p>=75?'sv-g':p>=50?'sv-o':'sv-r'},
+      {v:av,cls:parseFloat(av)<=3?'sv-g':parseFloat(av)<=5?'sv-o':'sv-r'},
+      m.resch,rr.toFixed(1)+'%'];
+  });
+  if(jobRows.length>0){
+    var jTD=jobRows.reduce(function(s,r){return s+(+r[1]);},0);
+    var jTW=jobRows.reduce(function(s,r){return s+(+r[2]);},0);
+    var jTB=jobRows.reduce(function(s,r){return s+(+r[3]);},0);
+    var jTR=Object.values(jobMap).reduce(function(s,m){return s+m.resch;},0);
+    var jTP=jTD?(jTW/jTD*100):0;
+    jobRows.push([{v:'TOTAL',cls:'sv-tot sv-tdl'},
+      {v:jTD,cls:'sv-tot'},{v:jTW,cls:'sv-tot'},{v:jTB,cls:'sv-tot'},
+      {v:jTP.toFixed(1)+'%',cls:'sv-tot '+(jTP>=75?'sv-g':jTP>=50?'sv-o':'sv-r')},
+      {v:avgTat,cls:'sv-tot'},{v:jTR,cls:'sv-tot'},{v:'',cls:'sv-tot'}]);
+    h+=tatTable('JOB TYPE-WISE TAT PERFORMANCE &mdash; '+dateLabel,jobRows,
+      ['Job Type','Tasks Done','Within TAT','TAT Breach','% Within TAT','Avg TAT (Days)','Rescheduled','Resch Rate']);
+  }
+
+  // Category-wise
+  var catFilt=TAT_RAW.category;
+  if(catFilt&&catFilt.length>0){
+    var catRows=catFilt.map(function(c){
+      var p=c.done?(c.within/c.done*100):0;
+      var rr=c.total?(c.resch/c.total*100):0;
+      return [c.name,c.done,c.within,c.breach,
+        {v:p.toFixed(1)+'%',cls:p>=75?'sv-g':p>=50?'sv-o':'sv-r'},
+        {v:(+c.avg).toFixed(1),cls:c.avg<=3?'sv-g':c.avg<=5?'sv-o':'sv-r'},
+        c.resch,rr.toFixed(1)+'%'];
+    });
+    h+=tatTable('CATEGORY-WISE TAT PERFORMANCE &mdash; '+dateLabel,catRows,
+      ['Category','Tasks Done','Within TAT','TAT Breach','% Within TAT','Avg TAT (Days)','Rescheduled','Resch Rate']);
+  }
+
+  h+='</div>';
+  return h;
+}
+
+/* ── Excel Export ── */
+function exportSimplifiedExcel(){
+  alert('Excel export coming soon! For now, use browser Print (Ctrl+P) to save as PDF.');
+}
+
 
 
 // ==================== HELPERS ====================
