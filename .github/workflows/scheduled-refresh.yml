@@ -62,8 +62,7 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "Auto-refresh: Metabase data $(date -u +'%Y-%m-%d %H:%M UTC')"
-            git pull --rebase origin main
-            git push
+            git push || (git fetch origin main && git merge --no-edit -X ours origin/main && git push)
           fi
 
       - name: Configure Pages
