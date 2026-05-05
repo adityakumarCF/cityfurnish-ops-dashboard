@@ -1920,6 +1920,25 @@ function openDrillFromKPI(strip, label, value, sub){
     chartHtml, ctx, true, isReschKPI);
 }
 
+function openKpiDrill(el){
+  var lEl=el.querySelector('.label');
+  var label=lEl?lEl.textContent.trim():'KPI';
+  var done=el.getAttribute('data-kpi-done');
+  var fsd=el.getAttribute('data-kpi-fsd');
+  var resch=el.getAttribute('data-kpi-resch');
+  var ctx=resolveMetricContext(el,label,done?{done:done}:{});
+  if(fsd){
+    var fsdIdx=PROC_IDX().FSD;
+    (function(fv){ctx.predicates.push(function(r){return r[fsdIdx]===fv;});ctx.labels.push('FSD='+fv);})(fsd);
+  }
+  if(resch==='1'){
+    var sdIdx=PROC_IDX().ScheduledDate,fsIdx=PROC_IDX().FirstScheduleDate;
+    ctx.predicates.push(function(r){var sd=r[sdIdx],fs=r[fsIdx];return sd&&fs&&sd!==fs;});
+    ctx.labels.push('Rescheduled');
+  }
+  openDrillBase(label+' — Raw Data',null,'',ctx,false,true);
+}
+
 function openDrillFromTable(card, title){
   const table=card.querySelector('table');
   if(!table) return;
@@ -2688,12 +2707,12 @@ function renderTaskPage(){
   const _taskTgt = weightedThreshold(cities, TASK.vehicle);
 
   document.getElementById('kpi-task').innerHTML = [
-    {l:'Total Assigned',v:totalAll,s:cities.length<ALL_CITIES.length?cities.join(', '):'All categories',c:'blue'},
-    {l:'Total Done',v:totalDone,s:`${overallPct}% completion`,c:'green'},
-    {l:'Not Done',v:totalAll-totalDone,s:`${(100-overallPct).toFixed(1)}% pending`,c:'red'},
-    {l:'Total Vehicles',v:vTot,s:`${vReg} reg + ${vAdh} adhoc`,c:'teal'},
-    {l:'Done Efficiency',v:doneEff,s:`Target: ≥${_taskTgt}/vehicle`,c:parseFloat(doneEff)>=_taskTgt?'green':'red'}
-  ].map(k=>`<div class="kpi ${k.c}">${kpiIcon(k.c)}<div class="label">${k.l}</div><div class="value">${k.v}</div><div class="sub">${k.s}</div></div>`).join('');
+    {l:'Total Assigned',v:totalAll,s:cities.length<ALL_CITIES.length?cities.join(', '):'All categories',c:'blue',d:''},
+    {l:'Total Done',v:totalDone,s:`${overallPct}% completion`,c:'green',d:'data-kpi-done="Done"'},
+    {l:'Not Done',v:totalAll-totalDone,s:`${(100-overallPct).toFixed(1)}% pending`,c:'red',d:'data-kpi-done="Not Done"'},
+    {l:'Total Vehicles',v:vTot,s:`${vReg} reg + ${vAdh} adhoc`,c:'teal',d:''},
+    {l:'Done Efficiency',v:doneEff,s:`Target: ≥${_taskTgt}/vehicle`,c:parseFloat(doneEff)>=_taskTgt?'green':'red',d:'data-kpi-done="Done"'}
+  ].map(k=>`<div class="kpi ${k.c}" onclick="openKpiDrill(this)"${k.d?' '+k.d:''}>${kpiIcon(k.c)}<div class="label">${k.l}</div><div class="value">${k.v}</div><div class="sub">${k.s}</div></div>`).join('');
 
   // Tables — TRANSPOSED: cities as rows, metrics as columns (fits all cities without horizontal scroll)
   const rowsList = [...cities];
@@ -2796,12 +2815,12 @@ function renderFadPage(){
   const _fadTgt = weightedThreshold(cities, FAD.vehicle);
 
   document.getElementById('kpi-fad').innerHTML = [
-    {l:'Total Orders',v:totalAssigned,s:cities.length<ALL_CITIES.length?cities.join(', '):'Unique Order IDs',c:'blue'},
-    {l:'Orders Done',v:totalDone,s:`${totalAssigned?(totalDone/totalAssigned*100).toFixed(1):'0'}% of orders`,c:'teal'},
-    {l:'FAD (1-trip)',v:totalFad,s:'Fulfilled in single trip',c:'purple'},
-    {l:'Overall FAD %',v:overallFad+'%',s:'FAD / Total Orders',c:parseFloat(overallFad)>=75?'green':'red'},
-    {l:'FAD Efficiency',v:fadEff,s:`Target: ≥${_fadTgt}/vehicle`,c:parseFloat(fadEff)>=_fadTgt?'green':'red'}
-  ].map(k=>`<div class="kpi ${k.c}">${kpiIcon(k.c)}<div class="label">${k.l}</div><div class="value">${k.v}</div><div class="sub">${k.s}</div></div>`).join('');
+    {l:'Total Orders',v:totalAssigned,s:cities.length<ALL_CITIES.length?cities.join(', '):'Unique Order IDs',c:'blue',d:''},
+    {l:'Orders Done',v:totalDone,s:`${totalAssigned?(totalDone/totalAssigned*100).toFixed(1):'0'}% of orders`,c:'teal',d:'data-kpi-done="Done"'},
+    {l:'FAD (1-trip)',v:totalFad,s:'Fulfilled in single trip',c:'purple',d:'data-kpi-done="Done"'},
+    {l:'Overall FAD %',v:overallFad+'%',s:'FAD / Total Orders',c:parseFloat(overallFad)>=75?'green':'red',d:'data-kpi-done="Done"'},
+    {l:'FAD Efficiency',v:fadEff,s:`Target: ≥${_fadTgt}/vehicle`,c:parseFloat(fadEff)>=_fadTgt?'green':'red',d:'data-kpi-done="Done"'}
+  ].map(k=>`<div class="kpi ${k.c}" onclick="openKpiDrill(this)"${k.d?' '+k.d:''}>${kpiIcon(k.c)}<div class="label">${k.l}</div><div class="value">${k.v}</div><div class="sub">${k.s}</div></div>`).join('');
 
   // TRANSPOSED: cities as rows, metrics as columns
   const fadRowsList=[...cities]; if(cities.length>1)fadRowsList.push('Total');
@@ -2851,12 +2870,12 @@ function renderFsdPage(){
   const _fsdTgt = weightedThreshold(cities, FSD.vehicle);
 
   document.getElementById('kpi-fsd').innerHTML = [
-    {l:'Total Tasks',v:totalAll,s:cities.length<ALL_CITIES.length?cities.join(', '):'All categories',c:'blue'},
-    {l:'FSD Met',v:totalTrue,s:'Done on first scheduled date',c:'green'},
-    {l:'FSD Missed',v:totalFalse,s:'Rescheduled tasks',c:'red'},
-    {l:'Overall FSD %',v:overallPct+'%',s:'Met / Total',c:parseFloat(overallPct)>=60?'green':'orange'},
-    {l:'FSD Efficiency',v:fsdEff,s:`Target: ≥${_fsdTgt}/vehicle`,c:parseFloat(fsdEff)>=_fsdTgt?'green':'red'}
-  ].map(k=>`<div class="kpi ${k.c}">${kpiIcon(k.c)}<div class="label">${k.l}</div><div class="value">${k.v}</div><div class="sub">${k.s}</div></div>`).join('');
+    {l:'Total Tasks',v:totalAll,s:cities.length<ALL_CITIES.length?cities.join(', '):'All categories',c:'blue',d:''},
+    {l:'FSD Met',v:totalTrue,s:'Done on first scheduled date',c:'green',d:'data-kpi-fsd="True"'},
+    {l:'FSD Missed',v:totalFalse,s:'Rescheduled tasks',c:'red',d:'data-kpi-fsd="False"'},
+    {l:'Overall FSD %',v:overallPct+'%',s:'Met / Total',c:parseFloat(overallPct)>=60?'green':'orange',d:'data-kpi-fsd="True"'},
+    {l:'FSD Efficiency',v:fsdEff,s:`Target: ≥${_fsdTgt}/vehicle`,c:parseFloat(fsdEff)>=_fsdTgt?'green':'red',d:'data-kpi-fsd="True"'}
+  ].map(k=>`<div class="kpi ${k.c}" onclick="openKpiDrill(this)"${k.d?' '+k.d:''}>${kpiIcon(k.c)}<div class="label">${k.l}</div><div class="value">${k.v}</div><div class="sub">${k.s}</div></div>`).join('');
 
   // TRANSPOSED: cities as rows, metrics as columns
   const fsdRowsList=[...cities];if(cities.length>1)fsdRowsList.push('Total');
@@ -3032,14 +3051,14 @@ function renderTatPage(){
   const pctColor = pctWithin < 50 ? 'red' : pctWithin < 75 ? 'orange' : 'green';
   const avgColor = avgTat > 5 ? 'red' : avgTat > 3 ? 'orange' : 'green';
   document.getElementById('kpi-tat').innerHTML = [
-    {l:'Total Cases',v:totCases,s:'All Zoho ticket cases',c:'blue'},
-    {l:'Cases Done',v:totDone,s:`${donePct}% completion`,c:'teal'},
-    {l:'Within TAT',v:totWithin,s:'Delivery≤3d · Pickup≤7d · SR≤3d',c:'green'},
-    {l:'TAT Breach',v:totBreach,s:'Exceeded category target',c:'red'},
-    {l:'% Within TAT',v:pctWithin+'%',s:'Target: ≥75%',c:pctColor},
-    {l:'Avg TAT (Days)',v:avgTat,s:'Sched Date − Assigned Date',c:avgColor},
-    {l:'Rescheduled',v:totResch,s:`${reschRate}% of all cases`,c:'orange'}
-  ].map(k=>`<div class="kpi ${k.c}">${kpiIcon(k.c)}<div class="label">${k.l}</div><div class="value">${k.v}</div><div class="sub">${k.s}</div></div>`).join('');
+    {l:'Total Cases',v:totCases,s:'All Zoho ticket cases',c:'blue',d:''},
+    {l:'Cases Done',v:totDone,s:`${donePct}% completion`,c:'teal',d:'data-kpi-done="Done"'},
+    {l:'Within TAT',v:totWithin,s:'Delivery≤3d · Pickup≤7d · SR≤3d',c:'green',d:'data-kpi-done="Done"'},
+    {l:'TAT Breach',v:totBreach,s:'Exceeded category target',c:'red',d:'data-kpi-done="Done"'},
+    {l:'% Within TAT',v:pctWithin+'%',s:'Target: ≥75%',c:pctColor,d:'data-kpi-done="Done"'},
+    {l:'Avg TAT (Days)',v:avgTat,s:'Sched Date − Assigned Date',c:avgColor,d:''},
+    {l:'Rescheduled',v:totResch,s:`${reschRate}% of all cases`,c:'orange',d:'data-kpi-resch="1"'}
+  ].map(k=>`<div class="kpi ${k.c}" onclick="openKpiDrill(this)"${k.d?' '+k.d:''}>${kpiIcon(k.c)}<div class="label">${k.l}</div><div class="value">${k.v}</div><div class="sub">${k.s}</div></div>`).join('');
 
   function tatTable(data, groupLabel, includeResch, showTarget){
     const baseCols = [groupLabel];
@@ -3116,19 +3135,19 @@ function renderTripPage(){
 
   const sColor = pctSingle>=80?'green':pctSingle>=60?'orange':'red';
   document.getElementById('kpi-trip').innerHTML = [
-    {l:'Total Unique Orders',v:tOrd,s:`${tTrips} total trip rows`,c:'blue'},
-    {l:'Single-Trip Orders',v:tSing,s:`${pctSingle.toFixed(1)}% of orders`,c:'green'},
-    {l:'Multi-Trip Orders',v:tMul,s:`${tWaste} waste trips`,c:'red'},
-    {l:'% Single Trip (Order)',v:pctSingle.toFixed(1)+'%',s:'Target: >=80%',c:sColor}
-  ].map(k=>`<div class="kpi ${k.c}">${kpiIcon(k.c)}<div class="label">${k.l}</div><div class="value">${k.v}</div><div class="sub">${k.s}</div></div>`).join('');
+    {l:'Total Unique Orders',v:tOrd,s:`${tTrips} total trip rows`,c:'blue',d:''},
+    {l:'Single-Trip Orders',v:tSing,s:`${pctSingle.toFixed(1)}% of orders`,c:'green',d:''},
+    {l:'Multi-Trip Orders',v:tMul,s:`${tWaste} waste trips`,c:'red',d:''},
+    {l:'% Single Trip (Order)',v:pctSingle.toFixed(1)+'%',s:'Target: >=80%',c:sColor,d:''}
+  ].map(k=>`<div class="kpi ${k.c}" onclick="openKpiDrill(this)"${k.d?' '+k.d:''}>${kpiIcon(k.c)}<div class="label">${k.l}</div><div class="value">${k.v}</div><div class="sub">${k.s}</div></div>`).join('');
 
   const avgTrips = tOrd?(tTrips/tOrd).toFixed(2):'0.00';
   document.getElementById('kpi-trip2').innerHTML = [
-    {l:'Total Trips (Rows)',v:tTrips,s:'All selected cities',c:'purple'},
-    {l:'Total Waste Trips',v:tWaste,s:'Extra trips above 1',c:'red'},
-    {l:'SRs After Delivery',v:tSRAD,s:tSRAD===0?'No quality issues':'Quality flag',c:tSRAD>0?'orange':'green'},
-    {l:'Avg Trips/Order',v:avgTrips,s:'Ideal: 1.00',c:parseFloat(avgTrips)<=1.05?'green':'orange'}
-  ].map(k=>`<div class="kpi ${k.c}">${kpiIcon(k.c)}<div class="label">${k.l}</div><div class="value">${k.v}</div><div class="sub">${k.s}</div></div>`).join('');
+    {l:'Total Trips (Rows)',v:tTrips,s:'All selected cities',c:'purple',d:''},
+    {l:'Total Waste Trips',v:tWaste,s:'Extra trips above 1',c:'red',d:''},
+    {l:'SRs After Delivery',v:tSRAD,s:tSRAD===0?'No quality issues':'Quality flag',c:tSRAD>0?'orange':'green',d:''},
+    {l:'Avg Trips/Order',v:avgTrips,s:'Ideal: 1.00',c:parseFloat(avgTrips)<=1.05?'green':'orange',d:''}
+  ].map(k=>`<div class="kpi ${k.c}" onclick="openKpiDrill(this)"${k.d?' '+k.d:''}>${kpiIcon(k.c)}<div class="label">${k.l}</div><div class="value">${k.v}</div><div class="sub">${k.s}</div></div>`).join('');
 
   // Order dist (use global since not per-city granular)
   let odH = `<h3>Order ID Trip Distribution</h3><table><thead><tr><th>Trips per Order</th><th>Count</th><th>% of Total</th><th>Total Used</th><th style="color:var(--red)">Waste</th></tr></thead><tbody>`;
