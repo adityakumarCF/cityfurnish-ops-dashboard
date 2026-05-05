@@ -2092,9 +2092,9 @@ async function loadZohoReasons(){
   sorted.forEach(function(pair){
     var pct = (pair[1]/total*100).toFixed(1);
     var cls = pct>=30?'sv-r':pct>=15?'sv-o':'sv-g';
-    h += '<tr><td style="text-align:left">'+pair[0]+'</td><td>'+pair[1]+'</td><td class="'+cls+'">'+pct+'%</td></tr>';
+    h += '<tr><td class="sv-tdl">'+pair[0]+'</td><td>'+pair[1]+'</td><td class="'+cls+'">'+pct+'%</td></tr>';
   });
-  h += '<tr class="sv-tot"><td style="text-align:left"><strong>Total Rescheduled</strong></td><td><strong>'+total+'</strong></td><td></td></tr>';
+  h += '<tr class="sv-tot"><td class="sv-tdl"><strong>Total Rescheduled</strong></td><td><strong>'+total+'</strong></td><td></td></tr>';
   h += '</tbody></table>';
   el.innerHTML = h;
 }
@@ -2985,6 +2985,17 @@ function svRenderTask(cities,dateLabel){
   h+='<tr class="sv-tot"><td></td><td class="sv-tdl"><strong>Total Done</strong></td>';
   dataCities.forEach(function(c){var v=TASK.vehicle[c]||{};h+='<td><strong>'+(v.total_done||0)+'</strong></td>';});
   h+='<td><strong>'+aggDone+'</strong></td></tr>';
+  // Per-category Done breakdown
+  cats.forEach(function(cat){
+    var catDoneTot=0;
+    h+='<tr><td></td><td class="sv-tdl">&nbsp;&nbsp;&rsaquo; '+cat+'</td>';
+    dataCities.forEach(function(c){
+      var d=(TASK.task[cat]&&TASK.task[cat][c])||{done:0};
+      catDoneTot+=d.done;
+      h+='<td>'+d.done+'</td>';
+    });
+    h+='<td>'+catDoneTot+'</td></tr>';
+  });
   h+='<tr><td></td><td class="sv-tdl">Efficiency</td>';
   dataCities.forEach(function(c){var v=TASK.vehicle[c]||{};var e=v.done_eff||0;var ok=e>=(v.threshold||6);h+='<td><span class="badge '+(ok?'badge-green':'badge-red')+'">'+e.toFixed(2)+'</span></td>';});
   var doneE=aggVD?+(aggDone/aggVD).toFixed(2):0;
@@ -3699,7 +3710,7 @@ function renderFadPage(){
   const _fadTgt = weightedThreshold(cities, FAD.vehicle);
 
   document.getElementById('kpi-fad').innerHTML = [
-    {l:'Total Assigned',v:totalAssigned,s:cities.length<ALL_CITIES.length?cities.join(', '):'Unique Order IDs',c:'blue',d:''},
+    {l:'Total Assigned',v:totalAssigned,s:cities.length<ALL_CITIES.length?cities.join(', '):'All categories',c:'blue',d:''},
     {l:'Total Done',v:totalDone,s:`${totalAssigned?(totalDone/totalAssigned*100).toFixed(1):'0'}% of assigned`,c:'teal',d:'data-kpi-done="Done"'},
     {l:'FAD (1-trip)',v:totalFad,s:'Fulfilled in single trip',c:'purple',d:'data-kpi-done="Done"'},
     {l:'Overall FAD %',v:overallFad+'%',s:'FAD / Total Done',c:parseFloat(overallFad)>=75?'green':'red',d:'data-kpi-done="Done"'},
@@ -3754,7 +3765,7 @@ function renderFsdPage(){
   const _fsdTgt = weightedThreshold(cities, FSD.vehicle);
 
   document.getElementById('kpi-fsd').innerHTML = [
-    {l:'Total Tasks',v:totalAll,s:cities.length<ALL_CITIES.length?cities.join(', '):'All categories',c:'blue',d:''},
+    {l:'Total Assigned',v:totalAll,s:cities.length<ALL_CITIES.length?cities.join(', '):'All categories',c:'blue',d:''},
     {l:'FSD Met',v:totalTrue,s:'Done on first scheduled date',c:'green',d:'data-kpi-fsd="True"'},
     {l:'FSD Missed',v:totalFalse,s:'Rescheduled tasks',c:'red',d:'data-kpi-fsd="False"'},
     {l:'Overall FSD %',v:overallPct+'%',s:'Met / Total',c:parseFloat(overallPct)>=60?'green':'orange',d:'data-kpi-fsd="True"'},
@@ -3935,7 +3946,7 @@ function renderTatPage(){
   const pctColor = pctWithin < 50 ? 'red' : pctWithin < 75 ? 'orange' : 'green';
   const avgColor = avgTat > 5 ? 'red' : avgTat > 3 ? 'orange' : 'green';
   document.getElementById('kpi-tat').innerHTML = [
-    {l:'Total Cases',v:totCases,s:'All Zoho ticket cases',c:'blue',d:''},
+    {l:'Total Assigned',v:totCases,s:cities.length<ALL_CITIES.length?cities.join(', '):'All categories',c:'blue',d:''},
     {l:'Cases Done',v:totDone,s:`${donePct}% completion`,c:'teal',d:'data-kpi-done="Done"'},
     {l:'Within TAT',v:totWithin,s:'Delivery≤3d · Pickup≤7d · SR≤3d',c:'green',d:'data-kpi-done="Done"'},
     {l:'TAT Breach',v:totBreach,s:'Exceeded category target',c:'red',d:'data-kpi-done="Done"'},
