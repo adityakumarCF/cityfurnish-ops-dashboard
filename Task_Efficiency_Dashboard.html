@@ -2325,6 +2325,7 @@ function computeKpiSnapshot(startYMD, endYMD){
   var R_SI=RH.indexOf('Status'),R_ASI=RH.indexOf('Case Addigned Date');
   var R_CI=RH.indexOf('City'),R_JTI=RH.indexOf('Job Type');
   var R_SDI=RH.indexOf('Scheduled Date'),R_FSI=RH.indexOf('first Schedule Date');
+  var R_RDI=RH.indexOf('Requested Date');  // Requested Date — fallback to First Schedule Date
   var DST={'Pickup Done':1,'Completed':1,'Delivered':1};
   var TT={Delivery:3,Pickup:7,SR:3};
   function dDiff(a,b){if(!a||!b)return -1;return Math.round((new Date(a)-new Date(b))/86400000);}
@@ -2343,7 +2344,7 @@ function computeKpiSnapshot(startYMD, endYMD){
     if(!tatByJt[jt])tatByJt[jt]={cat:cat,total:0,done:0,within:0,breach:0,sum:0};
     tatByJt[jt].total++;
     if(!isDone)return;
-    var ad=pAD(r[R_ASI]||'');if(!ad||!sd)return;
+    var ad=pAD(r[R_RDI]||'')||pAD(r[R_FSI]||'');if(!ad||!sd)return; // Req Date, else First Sched Date
     var tat=dDiff(sd,ad);if(tat<0)tat=0;
     var tgt=TT[cat]||3,w=tat<=tgt;
     tatDone++;tatAvgSum+=tat;if(w)tatWithin++;else tatBreach++;
@@ -3372,7 +3373,7 @@ function svRenderTat(cities,dateLabel){
 
   var pw=pctWithin;
   h+=svKpiRow([
-    {l:'Total Scheduled',v:totCases,c:''},
+    {l:'Total Assigned',v:totCases,c:''},
     {l:'Tasks Done',v:totDone,c:'sv-g'},
     {l:'Within TAT',v:totWithin,c:'sv-g'},
     {l:'TAT Breach',v:totBreach,c:totBreach>0?'sv-r':'sv-g'},
@@ -3615,7 +3616,7 @@ function renderTaskPage(){
         d=TASK.task[cat][rlbl]||{done:0,not_done:0,total:0,pct:0};
       }
       const rowCls=(rlbl==='Total')?' class="total-row"':'';
-      h+=`<tr${rowCls}><td>${rlbl}</td><td>${d.done}</td><td>${d.not_done}</td><td>${d.total}</td><td>${pctBadge(d.pct)}</td></tr>`;
+      h+=`<tr${rowCls}><td style="text-align:center">${rlbl}</td><td>${d.done}</td><td>${d.not_done}</td><td>${d.total}</td><td>${pctBadge(d.pct)}</td></tr>`;
     });
     return h+'</tbody></table></div>';
   }).join('');
@@ -3634,7 +3635,7 @@ function renderTaskPage(){
   // Per-city values are already correct (done_eff = done/vehicle_days)
   const vehDisp=TASK.vehicle;
   [['Regular Vehicles','regular'],['Ad-hoc Vehicles','adhoc'],['Total Vehicles','total_vehicles'],['Total Scheduled','total_scheduled'],['Total Done','total_done'],['Sched Efficiency','sched_eff'],['Done Efficiency','done_eff']].forEach(([l,k])=>{
-    vH+=`<tr><td>${l}</td>${vCols.map(c=>{const v=c==='Total'?vt:vehDisp[c];if(!v)return'<td>-</td>';if(k.includes('eff')){const ok=v[k]>=v.threshold;return`<td><span class="badge ${ok?'badge-green':'badge-red'}">${v[k].toFixed(2)}</span></td>`;}return`<td>${v[k]}</td>`;}).join('')}</tr>`;
+    vH+=`<tr><td style="text-align:center">${l}</td>${vCols.map(c=>{const v=c==='Total'?vt:vehDisp[c];if(!v)return'<td>-</td>';if(k.includes('eff')){const ok=v[k]>=v.threshold;return`<td><span class="badge ${ok?'badge-green':'badge-red'}">${v[k].toFixed(2)}</span></td>`;}return`<td>${v[k]}</td>`;}).join('')}</tr>`;
   });
   ['Sched','Done'].forEach(t=>{const k=t==='Sched'?'sched_eff':'done_eff';vH+=`<tr><td>${t} Flag</td>${vCols.map(c=>{const v=c==='Total'?vt:vehDisp[c];if(!v)return'<td>-</td>';return`<td>${v[k]>=v.threshold?'<span class="flag-ok">&#10003;</span>':'<span class="flag-bad">&#10007;</span>'}</td>`;}).join('')}</tr>`;});
   document.getElementById('veh-table-wrap').innerHTML = vH+'</tbody></table>';
@@ -3727,7 +3728,7 @@ function renderFadPage(){
       if(rlbl==='Total'){d={assigned:0,done:0,fad:0};cities.forEach(ci=>{if(FAD.fad[cat][ci]){d.assigned+=FAD.fad[cat][ci].assigned;d.done+=FAD.fad[cat][ci].done;d.fad+=FAD.fad[cat][ci].fad;}});d.pct=d.assigned?(d.fad/d.assigned*100):0;}
       else{d=FAD.fad[cat][rlbl]||{assigned:0,done:0,fad:0,pct:0};}
       const rowCls=(rlbl==='Total')?' class="total-row"':'';
-      h+=`<tr${rowCls}><td>${rlbl}</td><td>${d.assigned}</td><td>${d.done}</td><td>${d.fad}</td><td>${pctBadge(d.pct,[90,75])}</td></tr>`;
+      h+=`<tr${rowCls}><td style="text-align:center">${rlbl}</td><td>${d.assigned}</td><td>${d.done}</td><td>${d.fad}</td><td>${pctBadge(d.pct,[90,75])}</td></tr>`;
     });
     return h+'</tbody></table></div>';
   }).join('');
@@ -3781,7 +3782,7 @@ function renderFsdPage(){
       if(rlbl==='Total'){d={true_c:0,false_c:0,nofs:0,total:0};cities.forEach(ci=>{if(FSD.fsd[cat][ci]){d.true_c+=FSD.fsd[cat][ci].true_c;d.false_c+=FSD.fsd[cat][ci].false_c;d.nofs+=FSD.fsd[cat][ci].nofs;d.total+=FSD.fsd[cat][ci].total;}});d.pct=d.total?(d.true_c/d.total*100):0;}
       else{d=FSD.fsd[cat][rlbl]||{true_c:0,false_c:0,nofs:0,total:0,pct:0};}
       const rowCls=(rlbl==='Total')?' class="total-row"':'';
-      h+=`<tr${rowCls}><td>${rlbl}</td><td>${d.true_c}</td><td>${d.false_c}</td><td>${d.total}</td><td>${pctBadge(d.pct,[60,40])}</td></tr>`;
+      h+=`<tr${rowCls}><td style="text-align:center">${rlbl}</td><td>${d.true_c}</td><td>${d.false_c}</td><td>${d.total}</td><td>${pctBadge(d.pct,[60,40])}</td></tr>`;
     });
     return h+'</tbody></table></div>';
   }).join('');
@@ -3951,7 +3952,7 @@ function renderTatPage(){
     {l:'Within TAT',v:totWithin,s:'Delivery≤3d · Pickup≤7d · SR≤3d',c:'green',d:'data-kpi-done="Done"'},
     {l:'TAT Breach',v:totBreach,s:'Exceeded category target',c:'red',d:'data-kpi-done="Done"'},
     {l:'% Within TAT',v:pctWithin+'%',s:'Target: ≥75%',c:pctColor,d:'data-kpi-done="Done"'},
-    {l:'Avg TAT (Days)',v:avgTat,s:'Sched Date − Assigned Date',c:avgColor,d:''},
+    {l:'Avg TAT (Days)',v:avgTat,s:'Sched Date − Req/First Sched Date',c:avgColor,d:''},
     {l:'Rescheduled',v:totResch,s:`${reschRate}% of all cases`,c:'orange',d:'data-kpi-resch="1"'}
   ].map(k=>`<div class="kpi ${k.c}" onclick="openKpiDrill(this)"${k.d?' '+k.d:''}>${kpiIcon(k.c)}<div class="label">${k.l}</div><div class="value">${k.v}</div><div class="sub">${k.s}</div></div>`).join('');
 
@@ -3965,7 +3966,7 @@ function renderTatPage(){
       const rowTarget = d.target || 3;
       const pBadge = d.pct>=75?'badge-green':d.pct>=50?'badge-orange':'badge-red';
       const avgStyle = d.avg>rowTarget?'badge-red':d.avg>(rowTarget*0.7)?'badge-orange':'badge-green';
-      h+=`<tr><td>${d.name}</td>`;
+      h+=`<tr><td style="text-align:center">${d.name}</td>`;
       if(showTarget) h+=`<td><span class="badge badge-gray" style="background:rgba(100,116,139,0.12);color:var(--muted)">≤${rowTarget}d</span></td>`;
       h+=`<td>${d.done}</td><td>${d.within}</td><td>${d.breach}</td><td><span class="badge ${pBadge}">${d.pct.toFixed(1)}%</span></td><td><span class="badge ${avgStyle}">${d.avg.toFixed(1)}</span></td>`;
       if(includeResch) h+=`<td>${d.resch}</td><td>${d.resch_rate!==undefined?d.resch_rate.toFixed(1):(d.done+d.resch?(d.resch/(d.done+d.resch)*100).toFixed(1):'0.0')}%</td>`;
@@ -4660,7 +4661,7 @@ function recomputeAggregates(startYMD,endYMD){
   rawFiltered.forEach(function(r){
     var status=r[R_SI]||'',city=r[R_CI]||'',jt=r[R_JTI]||'';
     var cat=mapCatFromJT(jt),sd=r[R_SDI]||'',fs=r[R_FSI]||'';
-    var assignedDate=parseAssignedDate(r[R_ASI]||'');
+    var assignedDate=parseAssignedDate(r[R_RDI]||'')||parseAssignedDate(r[R_FSI]||''); // Req Date, else First Sched Date
     var isDone=!!DONE_ST[status];
     var isResch=sd&&fs&&sd!==fs; // Rescheduled = ANY task whose Scheduled Date moved off its First Schedule Date (matches Reschedule Reason Breakdown count)
     // Track total cases per city/cat
