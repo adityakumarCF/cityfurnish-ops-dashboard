@@ -3678,9 +3678,18 @@ function renderFadPage(){
   const cities = getSelectedCities('fad');
   renderFilterBar('filter-fad','fad');
 
-  // FAD numbers below are ORDER-LEVEL: assigned/done/fad are unique-order counts (not row counts)
+  // totalAssigned and totalDone match the Task report (use TASK.task source);
+  // totalFad is FAD-specific (globally-unique Done orders)
   let totalDone=0,totalFad=0,totalAssigned=0;
-  FAD.categories.forEach(cat=>{cities.forEach(c=>{if(FAD.fad[cat][c]){totalDone+=FAD.fad[cat][c].done;totalFad+=FAD.fad[cat][c].fad;totalAssigned+=FAD.fad[cat][c].assigned;}});});
+  FAD.categories.forEach(cat=>{
+    cities.forEach(c=>{
+      if(TASK.task[cat]&&TASK.task[cat][c]){
+        totalAssigned+=TASK.task[cat][c].total||0;
+        totalDone+=TASK.task[cat][c].done||0;
+      }
+      if(FAD.fad[cat][c]) totalFad+=FAD.fad[cat][c].fad;
+    });
+  });
   const overallFad = totalDone?((totalFad/totalDone)*100).toFixed(1):'0.0';
 
   let vTot=0,vDays=0,vDone=0,vFad=0;
