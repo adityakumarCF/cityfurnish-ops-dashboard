@@ -3576,10 +3576,10 @@ function renderFadPage(){
   const _fadTgt = weightedThreshold(cities, FAD.vehicle);
 
   document.getElementById('kpi-fad').innerHTML = [
-    {l:'Total Orders',v:totalAssigned,s:cities.length<ALL_CITIES.length?cities.join(', '):'Unique Order IDs',c:'blue',d:''},
-    {l:'Orders Done',v:totalDone,s:`${totalAssigned?(totalDone/totalAssigned*100).toFixed(1):'0'}% of orders`,c:'teal',d:'data-kpi-done="Done"'},
+    {l:'Total Assigned',v:totalAssigned,s:cities.length<ALL_CITIES.length?cities.join(', '):'Unique Order IDs',c:'blue',d:''},
+    {l:'Total Done',v:totalDone,s:`${totalAssigned?(totalDone/totalAssigned*100).toFixed(1):'0'}% of assigned`,c:'teal',d:'data-kpi-done="Done"'},
     {l:'FAD (1-trip)',v:totalFad,s:'Fulfilled in single trip',c:'purple',d:'data-kpi-done="Done"'},
-    {l:'Overall FAD %',v:overallFad+'%',s:'FAD / Total Orders',c:parseFloat(overallFad)>=75?'green':'red',d:'data-kpi-done="Done"'},
+    {l:'Overall FAD %',v:overallFad+'%',s:'FAD / Total Assigned',c:parseFloat(overallFad)>=75?'green':'red',d:'data-kpi-done="Done"'},
     {l:'FAD Efficiency',v:fadEff,s:`Target: ≥${_fadTgt}/vehicle`,c:parseFloat(fadEff)>=_fadTgt?'green':'red',d:'data-kpi-done="Done"'}
   ].map(k=>`<div class="kpi ${k.c}" onclick="openKpiDrill(this)"${k.d?' '+k.d:''}>${kpiIcon(k.c)}<div class="label">${k.l}</div><div class="value">${k.v}</div><div class="sub">${k.s}</div></div>`).join('');
 
