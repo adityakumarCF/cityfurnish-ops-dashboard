@@ -3726,7 +3726,8 @@ function recomputeAggregates(startYMD,endYMD){
   var R_SDI=RH.indexOf('Scheduled Date'),R_FSI=RH.indexOf('first Schedule Date');
   var DONE_ST={'Pickup Done':1,'Completed':1,'Delivered':1};
 
-  var rawFiltered=RAW_EXCEL.rows.filter(function(r){return r[R_SDI]>=startYMD&&r[R_SDI]<=endYMD&&!isThursdayYMD(r[R_SDI]);}); // filter by selected date range; Thursdays excluded
+  var EXCL_JT_SET={'PO Payment':1,'Stock Transfer':1,'Refurb Transfer':1};
+  var rawFiltered=RAW_EXCEL.rows.filter(function(r){var jt=r[R_JTI]||'';return !EXCL_JT_SET[jt]&&r[R_SDI]>=startYMD&&r[R_SDI]<=endYMD&&!isThursdayYMD(r[R_SDI]);}); // filter by selected date range; Thursdays excluded
 
   var rTatC={},rTatJC={};
   var rTatCat={Delivery:{total:0,done:0,within:0,breach:0,avg_sum:0,resch:0},Pickup:{total:0,done:0,within:0,breach:0,avg_sum:0,resch:0},SR:{total:0,done:0,within:0,breach:0,avg_sum:0,resch:0}};
