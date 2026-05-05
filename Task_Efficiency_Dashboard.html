@@ -4162,7 +4162,8 @@ function buildDynActionCard(item,sev){
     :'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12" y2="16"/></svg>';
   var sevLabel=sev.charAt(0).toUpperCase()+sev.slice(1);
   var src=item.type==='Task'?'Task Efficiency':item.type;
-  return '<div class="action-card '+sev+'" data-source="'+src+'" data-status="Not Started" data-severity="'+sev+'" data-city="'+item.city+'" data-dynamic="1">'+
+  var anId=(item.type+'|'+item.city+'|'+(item.cat||'')).replace(/[^a-zA-Z0-9|]/g,'_');
+  return '<div class="action-card '+sev+'" data-source="'+src+'" data-status="Not Started" data-severity="'+sev+'" data-city="'+item.city+'" data-an-id="'+anId+'" data-dynamic="1">'+
     '<div class="action-head"><div class="action-head-left"><div class="sev-row">'+
       '<span class="sev-badge '+sev+'">'+sevSvg+sevLabel+'</span>'+
       '<span class="meta-tag source-tag">'+sourceLabel+'</span>'+
@@ -4245,6 +4246,19 @@ function caTatAction(city, pct, breach, done, avg){
 function anApplyFilters(){
   renderFilterBar('filter-action','action');
   renderActionFadFsd(); // inject dynamic cards first so counts include them
+  // Restore persisted statuses from previous sessions
+  try{
+    document.querySelectorAll('#page-action .action-card[data-an-id]').forEach(function(card){
+      var id=card.getAttribute('data-an-id');
+      var saved=localStorage.getItem('cf-an-'+id);
+      if(saved){
+        card.setAttribute('data-status',saved);
+        var sel=card.querySelector('.item-status-select');
+        if(sel)sel.value=saved;
+        if(saved==='Resolved')card.classList.add('an-resolved');
+      }
+    });
+  }catch(e){}
   var sourceSet=anGetSourceSet();var statusSet=anGetStatusSet();
   var searchEl=document.getElementById('an-search-input');
   var searchVal=searchEl?(searchEl.value||'').toLowerCase().trim():'';
@@ -4269,8 +4283,23 @@ function anApplyFilters(){
   document.getElementById('an-kpi-high').querySelector('.value').textContent=String(sevCounts.high);
   document.getElementById('an-kpi-medium').querySelector('.value').textContent=String(sevCounts.medium);
   document.getElementById('an-kpi-resolved').querySelector('.value').textContent=String(resolvedCount);
-  document.getElementById('an-tab-badge').textContent=String(totalVisible);
-  var noRes=document.getElementById('an-no-results');if(totalVisible===0){noRes.classList.add('show')}else{noRes.classList.remove('show')}
+  var unresolved=totalVisible-resolvedCount;
+  document.getElementById('an-tab-badge').textContent=unresolved>0?String(unresolved):'';
+  var noRes=document.getElementById('an-no-results');if(totalVisible-resolvedCount===0&&resolvedCount>0){noRes.classList.remove('show')}else if(totalVisible===0){noRes.classList.add('show')}else{noRes.classList.remove('show')}
+  // Move resolved cards to end of each severity section + style them
+  ['an-dyn-critical','an-dyn-high','an-dyn-medium'].forEach(function(secId){
+    var sec=document.getElementById(secId);if(!sec)return;
+    var res=sec.querySelectorAll('.action-card:not(.filtered-out)[data-status="Resolved"]');
+    res.forEach(function(c){
+      c.classList.add('an-resolved');
+      var badge=c.querySelector('.sev-badge');
+      if(badge&&!badge.classList.contains('an-resolved-badge')){
+        badge.className='sev-badge an-resolved-badge';
+        badge.innerHTML='<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Resolved';
+      }
+      sec.appendChild(c);
+    });
+  });
 }
 
 // Status multi-select
@@ -4304,7 +4333,19 @@ document.addEventListener('click',function(e){var w=document.getElementById('an-
 resolveAndRender('overview'); // populate data on initial load
 anApplyFilters(); // initialise Action Needed badge + KPI counts on load
 var anSearchEl=document.getElementById('an-search-input');if(anSearchEl)anSearchEl.addEventListener('input',function(){anApplyFilters()});
-document.querySelectorAll('#page-action .item-status-select').forEach(function(sel){sel.addEventListener('change',function(){var card=sel.closest('.action-card');if(card)card.setAttribute('data-status',sel.value);anApplyFilters()})});
+// Event delegation handles both static and dynamic cards
+document.getElementById('page-action').addEventListener('change',function(e){
+  if(e.target.classList.contains('item-status-select')){
+    var card=e.target.closest('.action-card');
+    if(card){
+      var newStatus=e.target.value;
+      card.setAttribute('data-status',newStatus);
+      var id=card.getAttribute('data-an-id');
+      if(id){try{if(newStatus==='Not Started'){localStorage.removeItem('cf-an-'+id);}else{localStorage.setItem('cf-an-'+id,newStatus);}}catch(err){}}
+    }
+    anApplyFilters();
+  }
+});;
 </script>
 </body>
 </html>
