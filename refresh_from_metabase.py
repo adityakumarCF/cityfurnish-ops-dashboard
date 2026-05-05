@@ -267,6 +267,7 @@ PIPELINE = [
         "startTrip":      {"$arrayElemAt": ["$delivery.startTrip", 0]},
         "endTrip":        {"$arrayElemAt": ["$delivery.endTrip", 0]},
         "rescheduledDate":{"$arrayElemAt": ["$delivery.rescheduledDate", 0]},
+        "requestedDate":  {"$arrayElemAt": ["$delivery.requestedDate", 0]},
         "loginTime": 1,
         "logoutTime": 1,
     }},
@@ -301,6 +302,7 @@ PIPELINE = [
         "loginTime":            "$loginTime",
         "logoutTime":           "$logoutTime",
         "rescheduledDate":      "$rescheduledDate",
+        "Requested Date":       "$requestedDate",
         "Confirmation Status":  "$Confirmation Status",
     }},
 ]
