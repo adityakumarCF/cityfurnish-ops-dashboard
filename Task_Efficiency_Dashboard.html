@@ -400,9 +400,62 @@ body.dark-mode .drill-overlay{background:rgba(0,0,0,0.78)}
 .cal-day.cal-thursday.selected{opacity:1;text-decoration:none;color:#fff}
 .cal-day.cal-future{color:var(--muted2);opacity:0.35;cursor:not-allowed;background:transparent}
 .cal-day.cal-future:hover{color:var(--muted2);background:transparent}
+
+/* ============ PASSWORD GATE ============ */
+#password-gate{position:fixed;inset:0;z-index:100000;background:#0f172a;display:flex;align-items:center;justify-content:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;padding:20px}
+#password-gate .gate-card{background:#1e293b;border:1px solid #334155;border-radius:14px;padding:32px 36px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+#password-gate h2{color:#f1f5f9;margin:0 0 6px;font-size:20px;font-weight:700;letter-spacing:-.01em}
+#password-gate p{color:#94a3b8;margin:0 0 20px;font-size:13px;line-height:1.4}
+#password-gate input{width:100%;padding:11px 14px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#f1f5f9;font-size:14px;box-sizing:border-box;outline:none;transition:border-color .15s}
+#password-gate input:focus{border-color:#0d9488;box-shadow:0 0 0 3px rgba(13,148,136,.15)}
+#password-gate button{margin-top:12px;width:100%;padding:11px;border-radius:8px;border:0;background:#0d9488;color:white;font-weight:600;cursor:pointer;font-size:14px;transition:background .15s}
+#password-gate button:hover{background:#0f766e}
+#password-gate .gate-error{color:#ef4444;font-size:12px;margin-top:10px;min-height:14px;font-weight:500}
+#password-gate.shake .gate-card{animation:gate-shake .35s}
+@keyframes gate-shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
 </style>
 </head>
 <body>
+<!-- PASSWORD GATE -->
+<div id="password-gate">
+  <div class="gate-card">
+    <h2>&#128274; Operations Dashboard</h2>
+    <p>Internal team only. Enter password to continue.</p>
+    <input type="password" id="gate-input" autocomplete="off" placeholder="Password" />
+    <button onclick="checkPassword()">Unlock</button>
+    <div class="gate-error" id="gate-error"></div>
+  </div>
+</div>
+<script>
+window.DASHBOARD_PASSWORD = 'cf@admin';
+(function(){
+  if (sessionStorage.getItem('dashAuth')==='ok') {
+    var g=document.getElementById('password-gate'); if(g) g.remove();
+  } else {
+    setTimeout(function(){ var i=document.getElementById('gate-input'); if(i) i.focus(); },50);
+  }
+})();
+function checkPassword(){
+  var i=document.getElementById('gate-input');
+  var e=document.getElementById('gate-error');
+  var g=document.getElementById('password-gate');
+  if(!i||!g) return;
+  if(i.value===window.DASHBOARD_PASSWORD){
+    sessionStorage.setItem('dashAuth','ok');
+    g.style.transition='opacity .25s'; g.style.opacity='0';
+    setTimeout(function(){g.remove();},260);
+  } else {
+    e.textContent='Wrong password';
+    g.classList.add('shake');
+    setTimeout(function(){g.classList.remove('shake');},400);
+    i.value=''; i.focus();
+  }
+}
+document.addEventListener('keydown',function(ev){
+  if(ev.key==='Enter' && document.getElementById('password-gate')){ ev.preventDefault(); checkPassword(); }
+});
+</script>
+
 
 <!-- README MODAL -->
 <div class="modal-overlay" id="readme-modal">
