@@ -2364,15 +2364,16 @@ function computeKpiSnapshot(startYMD, endYMD){
   ['Delivery','Pickup','SR'].forEach(function(c){fadOv.assigned+=fadCat[c].assigned;fadOv.done+=fadCat[c].done;fadOv.fad+=fadCat[c].fad;});
 
   // FSD
-  var fsdCat={Delivery:{total:0,true_c:0},Pickup:{total:0,true_c:0},SR:{total:0,true_c:0}};
+  var fsdCat={Delivery:{total:0,true_c:0,false_c:0},Pickup:{total:0,true_c:0,false_c:0},SR:{total:0,true_c:0,false_c:0}};
   rows.forEach(function(r){
     var cat=r[CAI],fsd=r[FI];
     if(!cat||!fsdCat[cat])return;
     fsdCat[cat].total++;
     if(fsd==='True')fsdCat[cat].true_c++;
+    else if(fsd==='False')fsdCat[cat].false_c++;
   });
-  var fsdOv={total:0,true_c:0};
-  ['Delivery','Pickup','SR'].forEach(function(c){fsdOv.total+=fsdCat[c].total;fsdOv.true_c+=fsdCat[c].true_c;});
+  var fsdOv={total:0,true_c:0,false_c:0};
+  ['Delivery','Pickup','SR'].forEach(function(c){fsdOv.total+=fsdCat[c].total;fsdOv.true_c+=fsdCat[c].true_c;fsdOv.false_c+=fsdCat[c].false_c;});
 
   // TRIP
   var orderMap2={},ticketMap2={},totalAdhoc=0;
@@ -2449,10 +2450,10 @@ function computeKpiSnapshot(startYMD, endYMD){
       SR:{assigned:fadCat.SR.assigned,done:fadCat.SR.done,fad:fadCat.SR.fad,pct:pct(fadCat.SR.fad,fadCat.SR.assigned)}
     },
     fsd:{
-      overall:{total:fsdOv.total,true_c:fsdOv.true_c,pct:pct(fsdOv.true_c,fsdOv.total)},
-      Delivery:{total:fsdCat.Delivery.total,true_c:fsdCat.Delivery.true_c,pct:pct(fsdCat.Delivery.true_c,fsdCat.Delivery.total)},
-      Pickup:{total:fsdCat.Pickup.total,true_c:fsdCat.Pickup.true_c,pct:pct(fsdCat.Pickup.true_c,fsdCat.Pickup.total)},
-      SR:{total:fsdCat.SR.total,true_c:fsdCat.SR.true_c,pct:pct(fsdCat.SR.true_c,fsdCat.SR.total)}
+      overall:{total:fsdOv.total,true_c:fsdOv.true_c,false_c:fsdOv.false_c,pct:pct(fsdOv.true_c,fsdOv.true_c+fsdOv.false_c)},
+      Delivery:{total:fsdCat.Delivery.total,true_c:fsdCat.Delivery.true_c,false_c:fsdCat.Delivery.false_c,pct:pct(fsdCat.Delivery.true_c,fsdCat.Delivery.true_c+fsdCat.Delivery.false_c)},
+      Pickup:{total:fsdCat.Pickup.total,true_c:fsdCat.Pickup.true_c,false_c:fsdCat.Pickup.false_c,pct:pct(fsdCat.Pickup.true_c,fsdCat.Pickup.true_c+fsdCat.Pickup.false_c)},
+      SR:{total:fsdCat.SR.total,true_c:fsdCat.SR.true_c,false_c:fsdCat.SR.false_c,pct:pct(fsdCat.SR.true_c,fsdCat.SR.true_c+fsdCat.SR.false_c)}
     },
     trip:{
       total_rows:rows.length,unique_orders:tOrd,single_trip:tSing,multi_trip:tOrd-tSing,
@@ -3860,7 +3861,7 @@ function renderFsdPage(){
 
   let totalTrue=0,totalFalse=0,totalAll=0;
   FSD.categories.forEach(cat=>{cities.forEach(c=>{if(FSD.fsd[cat][c]){totalTrue+=FSD.fsd[cat][c].true_c;totalFalse+=FSD.fsd[cat][c].false_c;totalAll+=FSD.fsd[cat][c].total;}});});
-  const overallPct = totalAll?((totalTrue/totalAll)*100).toFixed(1):'0.0';
+  const overallPct = (totalTrue+totalFalse)?((totalTrue/(totalTrue+totalFalse))*100).toFixed(1):'0.0';
 
   let vTot=0,vDays=0,vDone=0,vFsd=0;
   cities.forEach(c=>{const v=FSD.vehicle[c];if(v){vTot+=v.total_vehicles;vDays+=(v.vehicle_days||v.total_vehicles);vDone+=v.total_done;vFsd+=v.fsd_true;}});
@@ -4717,7 +4718,7 @@ function recomputeAggregates(startYMD,endYMD){
     }
   });
   CATS.forEach(function(cat){newCities.forEach(function(c){
-    var d=fsdData[cat][c];d.pct=d.total?+((d.true_c/d.total)*100).toFixed(1):0;
+    var d=fsdData[cat][c];var doneFsd=d.true_c+d.false_c;d.pct=doneFsd?+((d.true_c/doneFsd)*100).toFixed(1):0;
   });});
   var fsdVehicle={};
   newCities.forEach(function(c){
