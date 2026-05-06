@@ -308,6 +308,103 @@ PIPELINE = [
 ]
 
 # ─────────────────────────────────────────────────────────────
+# Item-level (barcode) pipeline — deliveries collection, same date window, all cities
+# ─────────────────────────────────────────────────────────────
+ITEM_PIPELINE = [
+    {"$addFields": {"name": {"$concat": [
+        {"$ifNull": ["$firstName", ""]}, " ", {"$ifNull": ["$lastName", ""]},
+    ]}}},
+    {"$match": {"scheduledDate": {
+        "$gte": {"$date": f"{date_from}T00:00:00.000Z"},
+        "$lt":  {"$date": f"{date_to}T00:00:00.000Z"},
+    }}},
+    {"$addFields": {"id": {"$toObjectId": "$agentId"}}},
+    {"$lookup": {"from": "users", "localField": "id", "foreignField": "_id", "as": "agent"}},
+    {"$lookup": {
+        "from": "orderfromcityfurnishes",
+        "let": {"id": {"$toObjectId": "$_id"}},
+        "pipeline": [{"$match": {"$or": [
+            {"$expr": {"$eq": ["$pickup_deliveryId", "$$id"]}},
+            {"$expr": {"$eq": ["$deliveryId", "$$id"]}},
+        ]}}],
+        "as": "result",
+    }},
+    {"$sort": {"createdAt": -1}},
+    {"$addFields": {"resultCount": {"$size": "$result"}}},
+    {"$match": {"resultCount": {"$gt": 0}}},
+    {"$unwind": {"path": "$agent",  "preserveNullAndEmptyArrays": True}},
+    {"$unwind": {"path": "$result", "preserveNullAndEmptyArrays": True}},
+    {"$addFields": {"odooId": "$cf_odoo_id"}},
+    {"$project": {
+        "_id": 0,
+        "Scheduled Date": {"$dateToString": {"format": "%d/%m/%Y", "date": "$scheduledDate"}},
+        "City": "$city",
+        "SO Number": {"$ifNull": ["$result.Sale_Order", "$odooId"]},
+        "Ticket ID": "$ticketNumber",
+        "Customer Name": {"$concat": [{"$ifNull": ["$firstName", ""]}, " ", {"$ifNull": ["$lastName", ""]}]},
+        "Job Type": "$jobType",
+        "Product Name": "$result.Product_name",
+        "movement": "$Movement",
+        "Movement": {"$switch": {
+            "branches": [
+                {"case": {"$eq": ["$category", "Order"]}, "then": "OUT"},
+                {"case": {"$eq": ["$jobType", "Pickup and Refund"]}, "then": "In"},
+                {"case": {"$eq": ["$jobType", "PO Payment"]}, "then": "In"},
+                {"case": {"$eq": ["$jobType", "Refurb Transfer"]}, "then": "$movement"},
+                {"case": {"$eq": ["$jobType", "Stock Transfer"]}, "then": "$movement"},
+                {"case": {"$and": [
+                    {"$or": [{"$eq": ["$subCategory", "Replace"]}, {"$eq": ["$subCategory", "Repair"]}]},
+                    {"$eq": ["$result.client_Status", "Delivery Pending"]},
+                ]}, "then": "OUT"},
+                {"case": {"$and": [
+                    {"$or": [{"$eq": ["$subCategory", "Replace"]}, {"$eq": ["$subCategory", "Repair"]}]},
+                    {"$eq": ["$result.client_Status", "Replacement In"]},
+                ]}, "then": "In"},
+                {"case": {"$and": [
+                    {"$eq": ["$subCategory", "Upgrade"]},
+                    {"$cond": [{"$gt": [{"$ifNull": ["$result.deliveryId", None]}, None]}, True, False]},
+                ]}, "then": "Out"},
+                {"case": {"$and": [
+                    {"$eq": ["$subCategory", "Upgrade"]},
+                    {"$cond": [{"$gt": [{"$ifNull": ["$result.pickup_deliveryId", None]}, None]}, True, False]},
+                ]}, "then": "in"},
+            ],
+            "default": "=",
+        }},
+        "Quantity":             "$result.agentMarkqty",
+        "Physical Status":      "$result.status",
+        "Barcode":              "$result.barcode",
+        "Tried Barcode":        "$result.triedBarcode",
+        "Not scanning reasons": {"$ifNull": ["$result.message", ""]},
+        "Vehicle Number": {"$cond": {
+            "if":   {"$eq": ["$transport", ""]},
+            "then": "$adhoc_vehicle",
+            "else": "$transport",
+        }},
+        "Agent Name": "$agent.name",
+        "Expected Shipment Date": "$result.esd",
+    }},
+    {"$addFields": {"Movement": {"$ifNull": ["$Movement", "$movement"]}}},
+    {"$project": {"movement": 0}},
+    {"$addFields": {
+        "Physical Status": {"$cond": {
+            "if":   {"$eq": ["$Physical Status", "3"]},
+            "then": "Not Done",
+            "else": {"$cond": {
+                "if":   {"$eq": ["$Physical Status", "2"]},
+                "then": "Done",
+                "else": "$Physical Status",
+            }},
+        }},
+        "matchStatus": {"$cond": {
+            "if":   {"$eq": ["$Barcode", "$Tried Barcode"]},
+            "then": "match",
+            "else": "non match",
+        }},
+    }},
+]
+
+# ─────────────────────────────────────────────────────────────
 # Fetch from Metabase via /api/dataset (native MongoDB query)
 # ─────────────────────────────────────────────────────────────
 print(f'[refresh] Querying Metabase /api/dataset (db={DATABASE_ID}, collection=trips)…', flush=True)
@@ -468,6 +565,88 @@ print(f'[refresh] Rescheduled tickets to look up: {len(rescheduled_case_ids)}', 
 zoho_reasons = fetch_zoho_reasons(rescheduled_case_ids, cid_to_sd)
 
 # ─────────────────────────────────────────────────────────────
+# Fetch item-level (barcode) data — deliveries collection
+# ─────────────────────────────────────────────────────────────
+ITEM_HEADERS = [
+    'City', 'Job Type', 'Category', 'Physical Status', 'Vehicle Number',
+    'Agent Name', 'Scheduled Date', 'Ticket ID', 'SO Number',
+    'Product Name', 'Barcode', 'matchStatus', 'Movement',
+]
+item_processed_rows = []
+
+print(f'[refresh] Querying item-level data (db={DATABASE_ID}, collection=deliveries)…', flush=True)
+t_item = time.time()
+try:
+    item_result = metabase_post('/api/dataset', body={
+        'database': DATABASE_ID,
+        'type': 'native',
+        'native': {'query': json.dumps(ITEM_PIPELINE), 'collection': 'deliveries'},
+        'middleware': {'add-default-userland-constraints?': False, 'userland-query?': True},
+        'constraints': {'max-results': 1000000, 'max-results-bare-rows': 1000000},
+    })
+    print(f'[refresh] Item query responded in {time.time()-t_item:.1f}s', flush=True)
+
+    if 'data' in item_result and 'rows' in item_result['data']:
+        icols    = [c.get('name') or c.get('display_name') for c in item_result['data']['cols']]
+        irows_raw = item_result['data']['rows']
+        print(f'[refresh] Item data: {len(irows_raw)} rows × {len(icols)} cols', flush=True)
+
+        def find_icol(*candidates):
+            lower = [c.lower() if c else '' for c in icols]
+            for cand in candidates:
+                try: return lower.index(cand.lower())
+                except ValueError: pass
+            return -1
+
+        ii = {
+            'City':    find_icol('City', 'city'),
+            'JT':      find_icol('Job Type', 'jobType'),
+            'Status':  find_icol('Physical Status'),
+            'Veh':     find_icol('Vehicle Number'),
+            'Agent':   find_icol('Agent Name'),
+            'SD':      find_icol('Scheduled Date'),
+            'TKT':     find_icol('Ticket ID'),
+            'SO':      find_icol('SO Number'),
+            'Product': find_icol('Product Name'),
+            'Barcode': find_icol('Barcode'),
+            'Match':   find_icol('matchStatus'),
+            'Move':    find_icol('Movement'),
+        }
+
+        for row in irows_raw:
+            sd_raw = row[ii['SD']] if ii['SD'] >= 0 else None
+            sd_ymd = to_ymd(sd_raw) if sd_raw else ''
+            if not sd_ymd or not re.match(r'^\d{4}-\d{2}-\d{2}$', sd_ymd):
+                continue
+            try:    d_ = datetime.strptime(sd_ymd, '%Y-%m-%d').date()
+            except Exception: continue
+            if d_ > max_data_date:
+                continue
+
+            city    = str(row[ii['City']]    or '').strip() if ii['City']    >= 0 else ''
+            jt      = str(row[ii['JT']]      or '').strip() if ii['JT']      >= 0 else ''
+            status  = str(row[ii['Status']]  or '').strip() if ii['Status']  >= 0 else ''
+            veh     = str(row[ii['Veh']]     or '').strip() if ii['Veh']     >= 0 else ''
+            agent   = str(row[ii['Agent']]   or '').strip() if ii['Agent']   >= 0 else ''
+            tkt     = str(row[ii['TKT']]     or '').strip() if ii['TKT']     >= 0 else ''
+            so      = str(row[ii['SO']]      or '').strip() if ii['SO']      >= 0 else ''
+            product = str(row[ii['Product']] or '').strip() if ii['Product'] >= 0 else ''
+            barcode = str(row[ii['Barcode']] or '').strip() if ii['Barcode'] >= 0 else ''
+            match   = str(row[ii['Match']]   or '').strip() if ii['Match']   >= 0 else ''
+            move    = str(row[ii['Move']]    or '').strip() if ii['Move']    >= 0 else ''
+
+            item_processed_rows.append([
+                city, jt, m_cat(jt), status, veh, agent, sd_ymd,
+                tkt, so, product, barcode, match, move,
+            ])
+
+        print(f'[refresh] Item processed: {len(item_processed_rows)} rows', flush=True)
+    else:
+        print(f'[refresh] WARN: Item query returned no data', flush=True)
+except Exception as e:
+    print(f'[refresh] WARN: Item data fetch failed: {e}', flush=True)
+
+# ─────────────────────────────────────────────────────────────
 # Build JS constants
 # ─────────────────────────────────────────────────────────────
 processed_headers = [
@@ -481,9 +660,11 @@ raw_js    = 'const RAW_EXCEL = '            + json.dumps({'headers':cols,'rows':
 proc_js   = 'const PROCESSED_EXCEL = '      + json.dumps({'headers':processed_headers,'rows':[]}, ensure_ascii=False, separators=(',',':')) + ';'
 pfull_js  = 'const PROCESSED_EXCEL_FULL = ' + json.dumps({'headers':processed_headers,'rows':processed_rows}, ensure_ascii=False, separators=(',',':')) + ';'
 excl_js   = 'var EXCL_ROWS_FULL = '         + json.dumps({'headers':exclusion_headers,'rows':exclusion_rows}, ensure_ascii=False, separators=(',',':')) + ';'
-zoho_js   = 'const ZOHO_REASONS = '         + json.dumps(zoho_reasons, ensure_ascii=False, separators=(',',':')) + ';'
+zoho_js      = 'const ZOHO_REASONS = '         + json.dumps(zoho_reasons, ensure_ascii=False, separators=(',',':')) + ';'
+item_js      = 'const ITEM_EXCEL = '          + json.dumps({'headers': ITEM_HEADERS, 'rows': []}, ensure_ascii=False, separators=(',',':')) + ';'
+item_full_js = 'const ITEM_EXCEL_FULL = '     + json.dumps({'headers': ITEM_HEADERS, 'rows': item_processed_rows}, ensure_ascii=False, separators=(',',':')) + ';'
 
-print(f'[refresh] JS sizes: raw={len(raw_js)/1024/1024:.2f}MB, pfull={len(pfull_js)/1024/1024:.2f}MB, zoho_reasons={len(zoho_reasons)}', flush=True)
+print(f'[refresh] JS sizes: raw={len(raw_js)/1024/1024:.2f}MB, pfull={len(pfull_js)/1024/1024:.2f}MB, item_full={len(item_full_js)/1024/1024:.2f}MB, zoho_reasons={len(zoho_reasons)}', flush=True)
 
 # ─────────────────────────────────────────────────────────────
 # Patch HTML
@@ -503,8 +684,10 @@ def repl_line(html, pat, new, label):
 html = repl_line(html, r'^const ZOHO_REASONS = \{[^\n]*\};\s*$',         zoho_js,  'ZOHO_REASONS')
 html = repl_line(html, r'^const RAW_EXCEL = \{[^\n]*\};\s*$',            raw_js,   'RAW_EXCEL')
 html = repl_line(html, r'^const PROCESSED_EXCEL = \{[^\n]*\};\s*$',      proc_js,  'PROCESSED_EXCEL')
-html = repl_line(html, r'^const PROCESSED_EXCEL_FULL = \{[^\n]*\};\s*$', pfull_js, 'PROCESSED_EXCEL_FULL')
-html = repl_line(html, r'^var EXCL_ROWS_FULL = \{[^\n]*\};\s*$',         excl_js,  'EXCL_ROWS_FULL')
+html = repl_line(html, r'^const PROCESSED_EXCEL_FULL = \{[^\n]*\};\s*$', pfull_js,     'PROCESSED_EXCEL_FULL')
+html = repl_line(html, r'^var EXCL_ROWS_FULL = \{[^\n]*\};\s*$',         excl_js,      'EXCL_ROWS_FULL')
+html = repl_line(html, r'^const ITEM_EXCEL = \{[^\n]*\};\s*$',           item_js,      'ITEM_EXCEL')
+html = repl_line(html, r'^const ITEM_EXCEL_FULL = \{[^\n]*\};\s*$',      item_full_js, 'ITEM_EXCEL_FULL')
 
 # Date globals
 new_min = min_dt.strftime('%Y-%m-%d') if min_dt else max_data_date.strftime('%Y-%m-%d')

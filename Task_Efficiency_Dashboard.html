@@ -688,7 +688,7 @@ document.addEventListener('keydown',function(ev){
   <div class="tv-date-range" onclick="toggleCalendar(this)"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span class="tv-range-text">May 5, 2026</span></div>
   <div class="tv-nav"><button class="tv-nav-btn" onclick="navTime(-1)"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button><button class="tv-nav-btn" onclick="navTime(1)"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></button></div>
   <button class="export-btn" style="margin-left:auto" onclick="downloadTabPNGAuto(this)" title="Download whole tab as PNG"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download Tab PNG</button>
-  <div class="excl-btn-wrap" id="excl-btn-wrap-task"></div>
+  <div style="display:inline-flex;align-items:center;gap:4px;margin-left:12px;border-left:1px solid var(--border);padding-left:12px"><span style="font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.5px">DATA</span><button class="tv-btn task-view-btn active" id="tvb-task" onclick="switchTaskView('task',this)">Task</button><button class="tv-btn task-view-btn" id="tvb-item" onclick="switchTaskView('item',this)">Item</button></div><div class="excl-btn-wrap" id="excl-btn-wrap-task"></div>
 </div>
 <div class="filter-bar" id="filter-task"></div>
 <div class="tv-no-data" id="tv-nodata-task"><div class="tv-no-data-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="12" cy="16" r="1"/></svg></div><div class="tv-no-data-title">No data available for this view</div><div class="tv-no-data-desc">Switch back to <strong>Daily</strong> to see the current data.</div></div>
@@ -2276,6 +2276,10 @@ var ALL_CITIES = ["Bangalore","Chennai","Gurgaon","Hyderabad","Mumbai","Pune","H
 var MAX_YMD_GLOBAL = '2026-05-05';
 var MIN_YMD_GLOBAL = '2026-01-01';
 
+const ITEM_EXCEL = {"headers":["City","Job Type","Category","Physical Status","Vehicle Number","Agent Name","Scheduled Date","Ticket ID","SO Number","Product Name","Barcode","matchStatus","Movement"],"rows":[]};
+const ITEM_EXCEL_FULL = {"headers":["City","Job Type","Category","Physical Status","Vehicle Number","Agent Name","Scheduled Date","Ticket ID","SO Number","Product Name","Barcode","matchStatus","Movement"],"rows":[]};
+var ITEM_DATA = {categories:[], task:{}, vehicle:{}};
+
 const TASK = {"task":{},"vehicle":{},"categories":["Delivery","Pickup","SR"]};
 
 const FAD = {"fad":{},"vehicle":{},"categories":["Delivery","Pickup","SR"]};
@@ -2327,6 +2331,14 @@ function rerender(report){
   setTimeout(addExportButtons,50);
   if(report==='action') anApplyFilters();
   if(report==='simplified') renderSimplifiedView();
+}
+
+var taskViewMode='task';
+function switchTaskView(mode,el){
+  taskViewMode=mode;
+  document.querySelectorAll('.task-view-btn').forEach(function(b){b.classList.remove('active');});
+  if(el) el.classList.add('active');
+  renderTaskPage();
 }
 
 // ==================== KPI TREND ====================
@@ -3673,41 +3685,44 @@ function kpiIcon(c){
 function renderTaskPage(){
   const cities = getSelectedCities('task');
   renderFilterBar('filter-task','task');
+  var isItem = taskViewMode==='item';
+  var src = isItem ? ITEM_DATA : TASK;
+  var cats = (src.categories&&src.categories.length) ? src.categories : ['Delivery','Pickup','SR'];
 
   // Aggregate KPIs
   let totalDone=0,totalAll=0;
-  TASK.categories.forEach(cat=>{cities.forEach(c=>{if(TASK.task[cat][c]){totalDone+=TASK.task[cat][c].done;totalAll+=TASK.task[cat][c].total;}});});
+  cats.forEach(cat=>{cities.forEach(c=>{if(src.task[cat]&&src.task[cat][c]){totalDone+=src.task[cat][c].done;totalAll+=src.task[cat][c].total;}});});
   const overallPct = totalAll?((totalDone/totalAll)*100).toFixed(1):'0.0';
 
-  // Aggregate vehicle — done_eff is already done/vehicle-days, so no extra /days division needed
+  // Aggregate vehicle
   let vReg=0,vAdh=0,vTot=0,vDays=0,vSched=0,vDone=0;
-  cities.forEach(c=>{const v=TASK.vehicle[c];if(v){vReg+=v.regular;vAdh+=v.adhoc;vTot+=v.total_vehicles;vDays+=(v.vehicle_days||v.total_vehicles);vSched+=v.total_scheduled;vDone+=v.total_done;}});
+  cities.forEach(c=>{const v=src.vehicle[c];if(v){vReg+=v.regular||0;vAdh+=v.adhoc||0;vTot+=v.total_vehicles||0;vDays+=(v.vehicle_days||v.total_vehicles||0);vSched+=v.total_scheduled||0;vDone+=v.total_done||0;}});
   const _taskRange=resolveCurrentRange('task');
   const _taskDays=countWorkDays(_taskRange.start,_taskRange.end);
   const doneEff = vDays?(vDone/vDays).toFixed(2):'0.00';
   const _taskTgt = weightedThreshold(cities, TASK.vehicle);
 
   document.getElementById('kpi-task').innerHTML = [
-    {l:'Total Assigned',v:totalAll,s:cities.length<ALL_CITIES.length?cities.join(', '):'All categories',c:'blue',d:''},
-    {l:'Total Done',v:totalDone,s:`${overallPct}% completion`,c:'green',d:'data-kpi-done="Done"'},
-    {l:'Not Done',v:totalAll-totalDone,s:`${(100-overallPct).toFixed(1)}% pending`,c:'red',d:'data-kpi-done="Not Done"'},
-    {l:'Total Vehicles',v:vTot,s:`${vReg} reg + ${vAdh} adhoc`,c:'teal',d:''},
-    {l:'Done Efficiency',v:doneEff,s:`Target: ≥${_taskTgt}/vehicle`,c:parseFloat(doneEff)>=_taskTgt?'green':'red',d:'data-kpi-done="Done"'}
+    {l:isItem?'Total Items':'Total Assigned',v:totalAll,s:cities.length<ALL_CITIES.length?cities.join(', '):(isItem?'All items':'All categories'),c:'blue',d:''},
+    {l:'Total Done',v:totalDone,s:`${overallPct}% completion`,c:'green',d:isItem?'':'data-kpi-done="Done"'},
+    {l:'Not Done',v:totalAll-totalDone,s:`${(100-parseFloat(overallPct)).toFixed(1)}% pending`,c:'red',d:isItem?'':'data-kpi-done="Not Done"'},
+    {l:'Total Vehicles',v:vTot,s:isItem?`${vTot} vehicles used`:`${vReg} reg + ${vAdh} adhoc`,c:'teal',d:''},
+    {l:'Done Efficiency',v:doneEff,s:`Target: ≥${_taskTgt}/vehicle`,c:parseFloat(doneEff)>=_taskTgt?'green':'red',d:isItem?'':'data-kpi-done="Done"'}
   ].map(k=>`<div class="kpi ${k.c}" onclick="openKpiDrill(this)"${k.d?' '+k.d:''}>${kpiIcon(k.c)}<div class="label">${k.l}</div><div class="value">${k.v}</div><div class="sub">${k.s}</div></div>`).join('');
 
-  // Tables — TRANSPOSED: cities as rows, metrics as columns (fits all cities without horizontal scroll)
+  // Tables — cities as rows, metrics as columns
   const rowsList = [...cities];
   if(cities.length>1) rowsList.push('Total');
-  document.getElementById('task-tables').innerHTML = TASK.categories.map(cat=>{
+  document.getElementById('task-tables').innerHTML = cats.map(cat=>{
     let h=`<div class="card"><h3>${cat}</h3><table><thead><tr><th>City</th><th>Done</th><th>Not Done</th><th>Total</th><th>Done %</th></tr></thead><tbody>`;
     rowsList.forEach(rlbl=>{
       let d;
       if(rlbl==='Total'){
         d={done:0,not_done:0,total:0};
-        cities.forEach(ci=>{if(TASK.task[cat][ci]){d.done+=TASK.task[cat][ci].done;d.not_done+=TASK.task[cat][ci].not_done;d.total+=TASK.task[cat][ci].total;}});
+        cities.forEach(ci=>{if(src.task[cat]&&src.task[cat][ci]){d.done+=src.task[cat][ci].done;d.not_done+=src.task[cat][ci].not_done;d.total+=src.task[cat][ci].total;}});
         d.pct=d.total?(d.done/d.total*100):0;
       } else {
-        d=TASK.task[cat][rlbl]||{done:0,not_done:0,total:0,pct:0};
+        d=(src.task[cat]&&src.task[cat][rlbl])||{done:0,not_done:0,total:0,pct:0};
       }
       const rowCls=(rlbl==='Total')?' class="total-row"':'';
       h+=`<tr${rowCls}><td style="text-align:center">${rlbl}</td><td>${d.done}</td><td>${d.not_done}</td><td>${d.total}</td><td>${pctBadge(d.pct)}</td></tr>`;
@@ -3718,20 +3733,26 @@ function renderTaskPage(){
   // Vehicle table
   const vCols = [...cities]; if(cities.length>1) vCols.push('Total');
   let vH=`<table><thead><tr><th>Metric</th>${vCols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>`;
-  // Total row uses vehicle-days denominator + weighted city-threshold
   function vehTotal(){
+    if(isItem){
+      return {total_vehicles:vTot,total_done:vDone,total:totalAll,done_eff:vDays?+(vDone/vDays).toFixed(2):0,threshold:_taskTgt,regular:0,adhoc:0,sched_eff:0,total_scheduled:vSched,vehicle_days:vDays};
+    }
     const t={regular:vReg,adhoc:vAdh,total_vehicles:vTot,vehicle_days:vDays,total_scheduled:vSched,total_done:vDone,threshold:_taskTgt};
     t.sched_eff=vDays?+(vSched/vDays).toFixed(2):0;
     t.done_eff=vDays?+(vDone/vDays).toFixed(2):0;
     return t;
   }
   const vt=vehTotal();
-  // Per-city values are already correct (done_eff = done/vehicle_days)
-  const vehDisp=TASK.vehicle;
-  [['Regular Vehicles','regular'],['Ad-hoc Vehicles','adhoc'],['Total Vehicles','total_vehicles'],['Total Scheduled','total_scheduled'],['Total Done','total_done'],['Sched Efficiency','sched_eff'],['Done Efficiency','done_eff']].forEach(([l,k])=>{
-    vH+=`<tr><td style="text-align:center">${l}</td>${vCols.map(c=>{const v=c==='Total'?vt:vehDisp[c];if(!v)return'<td>-</td>';if(k.includes('eff')){const ok=v[k]>=v.threshold;return`<td><span class="badge ${ok?'badge-green':'badge-red'}">${v[k].toFixed(2)}</span></td>`;}return`<td>${v[k]}</td>`;}).join('')}</tr>`;
+  const vehDisp=src.vehicle;
+  var vehRows=isItem
+    ?[['Total Vehicles','total_vehicles'],['Total Items','total'],['Done Items','total_done'],['Done Efficiency','done_eff']]
+    :[['Regular Vehicles','regular'],['Ad-hoc Vehicles','adhoc'],['Total Vehicles','total_vehicles'],['Total Scheduled','total_scheduled'],['Total Done','total_done'],['Sched Efficiency','sched_eff'],['Done Efficiency','done_eff']];
+  vehRows.forEach(([l,k])=>{
+    vH+=`<tr><td style="text-align:center">${l}</td>${vCols.map(c=>{const v=c==='Total'?vt:vehDisp[c];if(!v)return'<td>-</td>';if(k.includes('eff')){const ok=(v[k]||0)>=v.threshold;return`<td><span class="badge ${ok?'badge-green':'badge-red'}">${(v[k]||0).toFixed(2)}</span></td>`;}return`<td>${v[k]||0}</td>`;}).join('')}</tr>`;
   });
-  ['Sched','Done'].forEach(t=>{const k=t==='Sched'?'sched_eff':'done_eff';vH+=`<tr><td>${t} Flag</td>${vCols.map(c=>{const v=c==='Total'?vt:vehDisp[c];if(!v)return'<td>-</td>';return`<td>${v[k]>=v.threshold?'<span class="flag-ok">&#10003;</span>':'<span class="flag-bad">&#10007;</span>'}</td>`;}).join('')}</tr>`;});
+  if(!isItem){
+    ['Sched','Done'].forEach(t=>{const k=t==='Sched'?'sched_eff':'done_eff';vH+=`<tr><td>${t} Flag</td>${vCols.map(c=>{const v=c==='Total'?vt:vehDisp[c];if(!v)return'<td>-</td>';return`<td>${(v[k]||0)>=v.threshold?'<span class="flag-ok">&#10003;</span>':'<span class="flag-bad">&#10007;</span>'}</td>`;}).join('')}</tr>`;});
+  }
   document.getElementById('veh-table-wrap').innerHTML = vH+'</tbody></table>';
 
   // City × Done / Not Done — All Job Types Combined
@@ -3740,9 +3761,9 @@ function renderTaskPage(){
     if(cities.length > 1) rows.push('Total');
     var totals = {};
     rows.forEach(function(c){ totals[c] = {done:0, not_done:0, total:0}; });
-    TASK.categories.forEach(function(cat){
+    cats.forEach(function(cat){
       cities.forEach(function(c){
-        var d = TASK.task[cat] && TASK.task[cat][c];
+        var d = src.task[cat] && src.task[cat][c];
         if(!d) return;
         totals[c].done     += d.done;
         totals[c].not_done += d.not_done;
@@ -3776,7 +3797,7 @@ function renderTaskPage(){
     document.getElementById('task-city-summary').innerHTML = h;
   })();
 
-  renderExclusionStrips('task');
+  if(!isItem) renderExclusionStrips('task');
 }
 
 // ==================== FAD ANALYSIS PAGE ====================
@@ -4614,6 +4635,41 @@ function recomputeAggregates(startYMD,endYMD){
       sched_eff:vdTot?+(sched/vdTot).toFixed(2):0,done_eff:vdTot?+(done/vdTot).toFixed(2):0,threshold:getCityThreshold(c)};
   });
   TASK.categories=CATS;TASK.task=taskData;TASK.vehicle=taskVehicle;
+
+  // ============== ITEM DATA (barcode-level toggle for Task tab) ==============
+  (function(){
+    if(!ITEM_EXCEL_FULL||!ITEM_EXCEL_FULL.rows.length){ITEM_DATA.categories=CATS;ITEM_DATA.task={};ITEM_DATA.vehicle={};return;}
+    var H=ITEM_EXCEL_FULL.headers;
+    var II={City:H.indexOf('City'),Cat:H.indexOf('Category'),St:H.indexOf('Physical Status'),Veh:H.indexOf('Vehicle Number'),SD:H.indexOf('Scheduled Date')};
+    var iData={};
+    CATS.forEach(function(cat){iData[cat]={};newCities.forEach(function(c){iData[cat][c]={done:0,not_done:0,total:0,pct:0};});});
+    var iVeh={};newCities.forEach(function(c){iVeh[c]=new Set();});
+    var iDone={};newCities.forEach(function(c){iDone[c]=0;});
+    var iTotal={};newCities.forEach(function(c){iTotal[c]=0;});
+    ITEM_EXCEL_FULL.rows.forEach(function(r){
+      var sd=r[II.SD];
+      if(!sd||sd<startYMD||sd>endYMD||isThursdayYMD(sd))return;
+      var city=r[II.City],cat=r[II.Cat],st=r[II.St],veh=r[II.Veh];
+      if(!city||!cat)return;
+      if(!iData[cat][city])iData[cat][city]={done:0,not_done:0,total:0,pct:0};
+      iData[cat][city].total++;
+      iTotal[city]=(iTotal[city]||0)+1;
+      if(st==='Done'){iData[cat][city].done++;iDone[city]=(iDone[city]||0)+1;}
+      if(veh)iVeh[city].add(String(veh));
+    });
+    CATS.forEach(function(cat){newCities.forEach(function(c){
+      var d=iData[cat][c];d.not_done=d.total-d.done;d.pct=d.total?+((d.done/d.total)*100).toFixed(1):0;
+    });});
+    var iVehicle={};
+    newCities.forEach(function(c){
+      var vc=iVeh[c].size;
+      var tgt=taskVehicle[c]?taskVehicle[c].threshold:getCityThreshold(c);
+      iVehicle[c]={total_vehicles:vc,total_done:iDone[c]||0,total:iTotal[c]||0,
+        done_eff:vc?+((iDone[c]||0)/vc).toFixed(2):0,threshold:tgt,
+        regular:0,adhoc:0,vehicle_days:vc,total_scheduled:iTotal[c]||0,sched_eff:0};
+    });
+    ITEM_DATA.categories=CATS;ITEM_DATA.task=iData;ITEM_DATA.vehicle=iVehicle;
+  })();
 
   // ============== FAD (NEW DEFINITION) ==============
   // FAD = "First Attempt Delivery despite reschedule" — order fulfilled in ONE go.
