@@ -230,6 +230,8 @@ body.dark-mode .drill-overlay{background:rgba(0,0,0,0.78)}
 .drill-raw-wrap tr.row-resch:hover td{background:rgba(249,115,22,0.10)}
 .drill-raw-wrap tr.row-fsd td{background:rgba(16,185,129,0.04)}
 .drill-raw-wrap tr.row-fsd:hover td{background:rgba(16,185,129,0.09)}
+.drill-raw-wrap tr.row-missing-fsd td{background:rgba(234,179,8,0.08)}
+.drill-raw-wrap tr.row-missing-fsd:hover td{background:rgba(234,179,8,0.16)}
 .drill-raw-wrap tr.group-header td{background:var(--card2);font-weight:800;font-size:10px;color:var(--accent);letter-spacing:0.3px;border-bottom:2px solid var(--border);padding:8px 12px;text-transform:uppercase}
 /* Compact info-row: subtitle + filter + group all in one line */
 .drill-info-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-shrink:0}
@@ -1469,6 +1471,7 @@ function rowHighlightClass(row){
   const done=row[idx.Done];
   const fsd=row[idx.FSD];
   if(done==='Not Done') return 'row-notdone';
+  if(fsd==='MISSING') return 'row-missing-fsd';
   if(fsd==='False') return 'row-resch';
   if(fsd==='True') return 'row-fsd';
   return '';
@@ -3867,8 +3870,8 @@ function renderFsdPage(){
 
   document.getElementById('kpi-fsd').innerHTML = [
     {l:'Total Assigned',v:totalAll,s:cities.length<ALL_CITIES.length?cities.join(', '):'All categories',c:'blue',d:''},
-    {l:'FSD Met',v:totalTrue,s:'Done on first scheduled date',c:'green',d:'data-kpi-fsd="True"'},
-    {l:'FSD Missed',v:totalFalse,s:'Rescheduled tasks',c:'red',d:'data-kpi-fsd="False"'},
+    {l:'FSD Met',v:totalTrue,s:'Sched Date ≤ Requested / First Sched Date',c:'green',d:'data-kpi-fsd="True"'},
+    {l:'FSD Missed',v:totalFalse,s:'Sched Date > Requested / First Sched Date',c:'red',d:'data-kpi-fsd="False"'},
     {l:'Overall FSD %',v:overallPct+'%',s:'Met / Total',c:parseFloat(overallPct)>=60?'green':'orange',d:'data-kpi-fsd="True"'},
     {l:'FSD Efficiency',v:fsdEff,s:`Target: ≥${_fsdTgt}/vehicle`,c:parseFloat(fsdEff)>=_fsdTgt?'green':'red',d:'data-kpi-fsd="True"'}
   ].map(k=>`<div class="kpi ${k.c}" onclick="openKpiDrill(this)"${k.d?' '+k.d:''}>${kpiIcon(k.c)}<div class="label">${k.l}</div><div class="value">${k.v}</div><div class="sub">${k.s}</div></div>`).join('');

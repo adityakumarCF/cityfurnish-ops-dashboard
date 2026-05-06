@@ -354,6 +354,7 @@ i = {
     'JobType':      find_col('Job Type', 'jobType', 'job_type'),
     'SD':           find_col('Scheduled Date', 'scheduledDate', 'scheduled_date'),
     'FSD':          find_col('first Schedule Date', 'firstScheduleDate', 'first_schedule_date'),
+    'RD':           find_col('Requested Date', 'requestedDate', 'requested_date'),
     'ASD':          find_col('Case Addigned Date', 'Case Assigned Date', 'caseAssignedDate'),
     'Adhoc':        find_col('Adhoc Vehicle', 'adhoc_vehicle', 'adhocVehicle'),
     'Transport':    find_col('Transport', 'transport', 'transportId'),
@@ -396,6 +397,7 @@ for row in rows_raw:
     norm = [normalize_cell(c) for c in row]
     norm[i['SD']] = sd_ymd
     if i['FSD']>=0: norm[i['FSD']] = to_ymd(row[i['FSD']])
+    if i['RD']>=0:  norm[i['RD']]  = to_ymd(row[i['RD']])
     if i['Del']>=0: norm[i['Del']] = to_ymd(row[i['Del']]) or norm[i['Del']]
     raw_rows.append(norm)
 
@@ -403,6 +405,7 @@ for row in rows_raw:
     city   = (norm[i['City']] or '')   if i['City']>=0 else ''
     jt     = (norm[i['JobType']] or '') if i['JobType']>=0 else ''
     fs     = norm[i['FSD']] if i['FSD']>=0 else ''
+    rd     = norm[i['RD']]  if i['RD']>=0  else ''
     adh    = (norm[i['Adhoc']] or '')   if i['Adhoc']>=0 else ''
     trans  = (norm[i['Transport']] or '') if i['Transport']>=0 else ''
     agent  = (norm[i['Agent']] or '')   if i['Agent']>=0 else ''
@@ -415,9 +418,15 @@ for row in rows_raw:
     if adh:        veh_type, veh_concat = 'Adhoc Vehicle',  adh
     elif trans:    veh_type, veh_concat = 'Regular Vehicle', trans
     else:          veh_type, veh_concat = '', ''
-    if   done == 'Done' and fs and sd_ymd == fs: fsd_flag = 'True'
-    elif done == 'Done' and fs and sd_ymd != fs: fsd_flag = 'False'
-    else:                                         fsd_flag = 'NoFS'
+    # FSD: Met = Sched Date <= Requested Date (fallback: First Scheduled Date)
+    # Not Met = Sched Date > reference. MISSING = Done but no reference date at all.
+    ref = rd or fs
+    if done != 'Done':
+        fsd_flag = 'NoFS'
+    elif not ref:
+        fsd_flag = 'MISSING'   # data issue — should not happen; flagged for QA
+    else:
+        fsd_flag = 'True' if sd_ymd <= ref else 'False'
 
     if jt in EXCL_JOB_TYPES:
         exclusion_rows.append([jt, city, cat, status, agent, sd_ymd])
