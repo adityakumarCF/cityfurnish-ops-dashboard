@@ -1789,11 +1789,6 @@ function resolveMetricContext(el, title, extra){
     const doneIdx=PROC_IDX().Done;
     ctx.predicates.push(function(r){return r[doneIdx]===d;});
     ctx.labels.push(d);
-  } else if(report==='fad'||report==='fsd'){
-    // FAD/FSD metrics are subsets of "Done" tasks
-    const doneIdx=PROC_IDX().Done;
-    ctx.predicates.push(function(r){return r[doneIdx]==='Done';});
-    ctx.labels.push('Done');
   }
   if(hints.vehicleType){
     const v=hints.vehicleType;
@@ -1808,10 +1803,20 @@ function resolveMetricContext(el, title, extra){
 function getMetricRows(ctx){
   const headers=PROCESSED_EXCEL.headers.slice();
   const preds=(ctx&&ctx.predicates)||[];
-  const rows=PROCESSED_EXCEL.rows.filter(function(r){
+  var rows=PROCESSED_EXCEL.rows.filter(function(r){
     for(let i=0;i<preds.length;i++){if(!preds[i](r)) return false;}
     return true;
   });
+  // ctx.dedup: column index to deduplicate by (keep first row per unique key)
+  if(ctx && ctx.dedup!=null){
+    var seen=new Set();
+    rows=rows.filter(function(r){
+      var k=String(r[ctx.dedup]);
+      if(seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  }
   return {headers:headers, rows:rows};
 }
 
@@ -2004,6 +2009,9 @@ function openKpiDrill(el){
   var done=el.getAttribute('data-kpi-done');
   var fsd=el.getAttribute('data-kpi-fsd');
   var resch=el.getAttribute('data-kpi-resch');
+  var tatFilter=el.getAttribute('data-kpi-tat');
+  var tripFilter=el.getAttribute('data-kpi-trip');
+  var fadOnly=el.getAttribute('data-kpi-fad-only');
   var ctx=resolveMetricContext(el,label,done?{done:done}:{});
   if(fsd){
     var fsdIdx=PROC_IDX().FSD;
@@ -2014,8 +2022,67 @@ function openKpiDrill(el){
     ctx.predicates.push(function(r){var sd=r[sdIdx],fs=r[fsIdx];return sd&&fs&&sd!==fs;});
     ctx.labels.push('Rescheduled');
   }
+  if(tatFilter && window.TAT_ROW_MAP){
+    var tkI=PROC_IDX().TicketNumber,trm=window.TAT_ROW_MAP,tf=tatFilter;
+    (function(ti,rm,f){ctx.predicates.push(function(r){var e=rm[r[ti]];return !!e&&(f==='done'?e.done:(f==='within'?e.within:(f==='breach'?e.breach:false)));});})(tkI,trm,tf);
+    ctx.labels.push(tatFilter==='done'?'TAT Done':tatFilter==='within'?'Within TAT':'TAT Breach');
+  }
+  if(tripFilter==='single'||tripFilter==='multi'||tripFilter==='multi_dedup'||tripFilter==='all_dedup'){
+    var oidI=PROC_IDX().OrderId,oidCnt={};
+    PROCESSED_EXCEL.rows.forEach(function(r){var o=r[oidI];if(o!=null&&o!=='')oidCnt[String(o)]=(oidCnt[String(o)]||0)+1;});
+    if(tripFilter==='single'){
+      (function(oi,cnt){ctx.predicates.push(function(r){return(cnt[String(r[oi])]||0)===1;});})(oidI,oidCnt);
+      ctx.labels.push('Single-trip orders');
+    } else if(tripFilter==='multi'){
+      (function(oi,cnt){ctx.predicates.push(function(r){return(cnt[String(r[oi])]||0)>1;});})(oidI,oidCnt);
+      ctx.labels.push('Multi-trip orders');
+    } else if(tripFilter==='multi_dedup'){
+      (function(oi,cnt){ctx.predicates.push(function(r){return(cnt[String(r[oi])]||0)>1;});})(oidI,oidCnt);
+      ctx.labels.push('Multi-trip orders');
+      ctx.dedup=oidI;
+    } else if(tripFilter==='all_dedup'){
+      // no predicate — all orders; dedup collapses to one row per order
+      ctx.labels.push('All orders (unique)');
+      ctx.dedup=oidI;
+    }
+  }
+  if(fadOnly==='1' && typeof PROCESSED_EXCEL_FULL!=='undefined'){
+    var foidI=PROC_IDX().OrderId,foidCnt={};
+    PROCESSED_EXCEL_FULL.rows.forEach(function(r){var o=r[foidI];if(o!=null&&o!=='')foidCnt[String(o)]=(foidCnt[String(o)]||0)+1;});
+    (function(oi,cnt){ctx.predicates.push(function(r){return(cnt[String(r[oi])]||0)===1;});})(foidI,foidCnt);
+    ctx.labels.push('FAD Only');
+  }
   openDrillBase(label+' — Raw Data',null,'',ctx,false,true);
   if(resch==='1') setTimeout(injectZohoReasonsInDrill, 400);
+}
+
+function openAgentDrill(agent,city){
+  var h=PROCESSED_EXCEL.headers,agI=h.indexOf('Agent Name'),ciI=h.indexOf('City');
+  var ctx={report:'task',title:'Agent: '+agent,predicates:[],labels:['Agent: '+agent,'City: '+city]};
+  (function(a,c,ai,ci){ctx.predicates.push(function(r){return r[ai]===a&&r[ci]===c;});})(agent,city,agI,ciI);
+  openDrillBase(agent+' — '+city+' Tasks',null,'',ctx,false,true);
+}
+
+function openTripBucketDrill(n){
+  var h=PROCESSED_EXCEL.headers,oidI=h.indexOf('Order Id'),oidCnt={};
+  PROCESSED_EXCEL.rows.forEach(function(r){var o=r[oidI];if(o!=null&&o!=='')oidCnt[String(o)]=(oidCnt[String(o)]||0)+1;});
+  var ctx={report:'task',title:n+' Trip Orders',predicates:[],labels:[n+'-trip orders']};
+  (function(oi,cnt,nt){ctx.predicates.push(function(r){return(cnt[String(r[oi])]||0)===nt;});})(oidI,oidCnt,n);
+  openDrillBase(n+' Trip Orders — Raw Data',null,'',ctx,false,true);
+}
+
+function openOrderDrill(orderId){
+  var h=PROCESSED_EXCEL.headers,oidI=h.indexOf('Order Id');
+  var ctx={report:'task',title:'Order '+orderId,predicates:[],labels:['Order: '+orderId]};
+  (function(oi,o){ctx.predicates.push(function(r){return String(r[oi])===String(o);});})(oidI,orderId);
+  openDrillBase('Order '+orderId+' — All Tickets',null,'',ctx,false,true);
+}
+
+function openCityTripDrill(city){
+  var h=PROCESSED_EXCEL.headers,ciI=h.indexOf('City');
+  var ctx={report:'task',title:'City: '+city,predicates:[],labels:['City: '+city]};
+  (function(ci,c){ctx.predicates.push(function(r){return r[ci]===c;});})(ciI,city);
+  openDrillBase(city+' — All Tasks',null,'',ctx,false,true);
 }
 
 function openDrillFromTable(card, title){
@@ -3736,7 +3803,7 @@ function renderFadPage(){
   document.getElementById('kpi-fad').innerHTML = [
     {l:'Total Assigned',v:totalAssigned,s:cities.length<ALL_CITIES.length?cities.join(', '):'All categories',c:'blue',d:''},
     {l:'Total Done',v:totalDone,s:`${totalAssigned?(totalDone/totalAssigned*100).toFixed(1):'0'}% of assigned`,c:'teal',d:'data-kpi-done="Done"'},
-    {l:'FAD (1-trip)',v:totalFad,s:'Fulfilled in single trip',c:'purple',d:'data-kpi-done="Done"'},
+    {l:'FAD (1-trip)',v:totalFad,s:'Fulfilled in single trip',c:'purple',d:'data-kpi-done="Done" data-kpi-fad-only="1"'},
     {l:'Overall FAD %',v:overallFad+'%',s:'FAD / Total Done',c:parseFloat(overallFad)>=75?'green':'red',d:'data-kpi-done="Done"'},
     {l:'FAD Efficiency',v:fadEff,s:`Target: ≥${_fadTgt}/vehicle`,c:parseFloat(fadEff)>=_fadTgt?'green':'red',d:'data-kpi-done="Done"'}
   ].map(k=>`<div class="kpi ${k.c}" onclick="openKpiDrill(this)"${k.d?' '+k.d:''}>${kpiIcon(k.c)}<div class="label">${k.l}</div><div class="value">${k.v}</div><div class="sub">${k.s}</div></div>`).join('');
@@ -3981,9 +4048,9 @@ function renderTatPage(){
   const avgColor = avgTat > 5 ? 'red' : avgTat > 3 ? 'orange' : 'green';
   document.getElementById('kpi-tat').innerHTML = [
     {l:'Total Assigned',v:totCases,s:cities.length<ALL_CITIES.length?cities.join(', '):'All categories',c:'blue',d:''},
-    {l:'Cases Done',v:totDone,s:`${donePct}% completion`,c:'teal',d:'data-kpi-done="Done"'},
-    {l:'Within TAT',v:totWithin,s:'Delivery≤3d · Pickup≤7d · SR≤3d',c:'green',d:'data-kpi-done="Done"'},
-    {l:'TAT Breach',v:totBreach,s:'Exceeded category target',c:'red',d:'data-kpi-done="Done"'},
+    {l:'Total Done',v:totDone,s:`${donePct}% completion`,c:'teal',d:'data-kpi-tat="done"'},
+    {l:'Within TAT',v:totWithin,s:'Delivery≤3d · Pickup≤7d · SR≤3d',c:'green',d:'data-kpi-tat="within"'},
+    {l:'TAT Breach',v:totBreach,s:'Exceeded category target',c:'red',d:'data-kpi-tat="breach"'},
     {l:'% Within TAT',v:pctWithin+'%',s:'Target: ≥75%',c:pctColor,d:'data-kpi-done="Done"'},
     {l:'Avg TAT (Days)',v:avgTat,s:'Sched Date − Req/First Sched Date',c:avgColor,d:''},
     {l:'Rescheduled',v:totResch,s:`${reschRate}% of all cases`,c:'orange',d:'data-kpi-resch="1"'}
@@ -4065,16 +4132,16 @@ function renderTripPage(){
 
   const sColor = pctSingle>=80?'green':pctSingle>=60?'orange':'red';
   document.getElementById('kpi-trip').innerHTML = [
-    {l:'Total Unique Orders',v:tOrd,s:`${tTrips} total trip rows`,c:'blue',d:''},
-    {l:'Single-Trip Orders',v:tSing,s:`${pctSingle.toFixed(1)}% of orders`,c:'green',d:''},
-    {l:'Multi-Trip Orders',v:tMul,s:`${tWaste} waste trips`,c:'red',d:''},
+    {l:'Total Unique Orders',v:tOrd,s:`${tTrips} total trip rows`,c:'blue',d:'data-kpi-trip="all_dedup"'},
+    {l:'Single-Trip Orders',v:tSing,s:`${pctSingle.toFixed(1)}% of orders`,c:'green',d:'data-kpi-trip="single"'},
+    {l:'Multi-Trip Orders',v:tMul,s:`${tWaste} waste trips`,c:'red',d:'data-kpi-trip="multi_dedup"'},
     {l:'% Single Trip (Order)',v:pctSingle.toFixed(1)+'%',s:'Target: >=80%',c:sColor,d:''}
   ].map(k=>`<div class="kpi ${k.c}" onclick="openKpiDrill(this)"${k.d?' '+k.d:''}>${kpiIcon(k.c)}<div class="label">${k.l}</div><div class="value">${k.v}</div><div class="sub">${k.s}</div></div>`).join('');
 
   const avgTrips = tOrd?(tTrips/tOrd).toFixed(2):'0.00';
   document.getElementById('kpi-trip2').innerHTML = [
-    {l:'Total Trips (Rows)',v:tTrips,s:'All selected cities',c:'purple',d:''},
-    {l:'Total Waste Trips',v:tWaste,s:'Extra trips above 1',c:'red',d:''},
+    {l:'Total Trips (Rows)',v:tTrips,s:'All selected cities',c:'purple',d:'data-kpi-trip="all"'},
+    {l:'Total Waste Trips',v:tWaste,s:'Extra trips above 1',c:'red',d:'data-kpi-trip="multi_dedup"'},
     {l:'SRs After Delivery',v:tSRAD,s:tSRAD===0?'No quality issues':'Quality flag',c:tSRAD>0?'orange':'green',d:''},
     {l:'Avg Trips/Order',v:avgTrips,s:'Ideal: 1.00',c:parseFloat(avgTrips)<=1.05?'green':'orange',d:''}
   ].map(k=>`<div class="kpi ${k.c}" onclick="openKpiDrill(this)"${k.d?' '+k.d:''}>${kpiIcon(k.c)}<div class="label">${k.l}</div><div class="value">${k.v}</div><div class="sub">${k.s}</div></div>`).join('');
@@ -4083,7 +4150,8 @@ function renderTripPage(){
   let odH = `<h3>Order ID Trip Distribution</h3><table><thead><tr><th>Trips per Order</th><th>Count</th><th>% of Total</th><th>Total Used</th><th style="color:var(--red)">Waste</th></tr></thead><tbody>`;
   TRIP.orderDist.forEach(d=>{
     const wStyle = d.waste>0?'color:var(--red);font-weight:700':'';
-    odH += `<tr><td>${d.label}${d.waste===0?' ✅':''}</td><td>${d.count}</td><td>${d.pct}%</td><td>${d.total_used}</td><td style="${wStyle}">${d.waste}</td></tr>`;
+    const n=parseInt(d.label)||1;
+    odH += `<tr onclick="openTripBucketDrill(${n})" style="cursor:pointer" title="Click to view these orders"><td>${d.label}${d.waste===0?' ✅':''}</td><td>${d.count}</td><td>${d.pct}%</td><td>${d.total_used}</td><td style="${wStyle}">${d.waste}</td></tr>`;
   });
   odH += `<tr style="font-weight:700;background:var(--card2)"><td>TOTAL</td><td>${TRIP.orderDist.reduce((s,d)=>s+d.count,0)}</td><td>100%</td><td>${TRIP.orderDist.reduce((s,d)=>s+d.total_used,0)}</td><td style="color:var(--red)">${TRIP.orderDist.reduce((s,d)=>s+d.waste,0)}</td></tr>`;
   document.getElementById('trip-order-dist').innerHTML = odH + '</tbody></table>';
@@ -4091,7 +4159,8 @@ function renderTripPage(){
   let tdH = `<h3>Ticket Trip Distribution</h3><table><thead><tr><th>Trips per Ticket</th><th>Count</th><th>% of Total</th><th>Total Used</th><th style="color:var(--red)">Waste</th></tr></thead><tbody>`;
   TRIP.ticketDist.forEach(d=>{
     const wStyle = d.waste>0?'color:var(--red);font-weight:700':'';
-    tdH += `<tr><td>${d.label}${d.waste===0?' ✅':''}</td><td>${d.count}</td><td>${d.pct}%</td><td>${d.total_used}</td><td style="${wStyle}">${d.waste}</td></tr>`;
+    const n=parseInt(d.label)||1;
+    tdH += `<tr onclick="openTripBucketDrill(${n})" style="cursor:pointer" title="Click to view these orders"><td>${d.label}${d.waste===0?' ✅':''}</td><td>${d.count}</td><td>${d.pct}%</td><td>${d.total_used}</td><td style="${wStyle}">${d.waste}</td></tr>`;
   });
   tdH += `<tr style="font-weight:700;background:var(--card2)"><td>TOTAL</td><td>${TRIP.ticketDist.reduce((s,d)=>s+d.count,0)}</td><td>100%</td><td>${TRIP.ticketDist.reduce((s,d)=>s+d.total_used,0)}</td><td style="color:var(--red)">${TRIP.ticketDist.reduce((s,d)=>s+d.waste,0)}</td></tr>`;
   document.getElementById('trip-ticket-dist').innerHTML = tdH + '</tbody></table>';
@@ -4102,7 +4171,7 @@ function renderTripPage(){
     const pBadge=c.pct_single>=80?'badge-green':c.pct_single>=60?'badge-orange':'badge-red';
     const aBadge=c.pct_adhoc>50?'badge-red':c.pct_adhoc>20?'badge-orange':'badge-green';
     const nd=c.not_done||0;
-    cH+=`<tr><td>${c.city}</td><td>${c.total_orders}</td><td>${c.single_trip}</td><td>${c.multi_trip}</td><td style="color:${nd>0?'var(--red)':'var(--muted)'};font-weight:${nd>0?'700':'400'}">${nd}</td><td><span class="badge ${pBadge}">${c.pct_single}%</span></td><td style="color:var(--red);font-weight:${c.waste_trips>0?'700':'400'}">${c.waste_trips}</td><td>${c.total_trips}</td><td>${c.regular}</td><td>${c.adhoc}</td><td><span class="badge ${aBadge}">${c.pct_adhoc}%</span></td><td>${c.sr_after_del}</td></tr>`;
+    cH+=`<tr onclick="openCityTripDrill('${c.city}')" style="cursor:pointer" title="Click to view ${c.city} raw data"><td>${c.city}</td><td>${c.total_orders}</td><td>${c.single_trip}</td><td>${c.multi_trip}</td><td style="color:${nd>0?'var(--red)':'var(--muted)'};font-weight:${nd>0?'700':'400'}">${nd}</td><td><span class="badge ${pBadge}">${c.pct_single}%</span></td><td style="color:var(--red);font-weight:${c.waste_trips>0?'700':'400'}">${c.waste_trips}</td><td>${c.total_trips}</td><td>${c.regular}</td><td>${c.adhoc}</td><td><span class="badge ${aBadge}">${c.pct_adhoc}%</span></td><td>${c.sr_after_del}</td></tr>`;
   });
   if(cityData.length>1){
     const tReg=cityData.reduce((s,c)=>s+c.regular,0),tAdh=cityData.reduce((s,c)=>s+c.adhoc,0);
@@ -4127,7 +4196,7 @@ function renderTripPage(){
     let moH=`<table><thead><tr><th>#</th><th>Order ID</th><th>City</th><th>Total Trips</th><th>Del</th><th>Pickup</th><th>SR</th><th>Job Types</th><th>Status</th><th style="color:var(--red)">Waste</th></tr></thead><tbody>`;
     filteredOrders.forEach((m,i)=>{
       const sBadge=m.status==='All Done'?'badge-green':m.status==='Partially Done'?'badge-orange':'badge-red';
-      moH+=`<tr><td>${i+1}</td><td>${m.order_id}</td><td>${m.city}</td><td>${m.total_trips}</td><td>${m.delivery}</td><td>${m.pickup}</td><td>${m.sr}</td><td style="font-size:11px">${m.job_types}</td><td><span class="badge ${sBadge}">${m.status}</span></td><td style="color:var(--red);font-weight:700">${m.waste}</td></tr>`;
+      moH+=`<tr onclick="openOrderDrill('${m.order_id}')" style="cursor:pointer" title="Click to view all tickets for this order"><td>${i+1}</td><td>${m.order_id}</td><td>${m.city}</td><td>${m.total_trips}</td><td>${m.delivery}</td><td>${m.pickup}</td><td>${m.sr}</td><td style="font-size:11px">${m.job_types}</td><td><span class="badge ${sBadge}">${m.status}</span></td><td style="color:var(--red);font-weight:700">${m.waste}</td></tr>`;
     });
     document.getElementById('trip-order-detail').innerHTML = moH+'</tbody></table>';
   } else {
@@ -4139,7 +4208,7 @@ function renderTripPage(){
     let mtH=`<table><thead><tr><th>#</th><th>Ticket</th><th>Order ID</th><th>City</th><th>Category</th><th>Job Type</th><th>Trips</th><th>Status</th><th style="color:var(--red)">Waste</th></tr></thead><tbody>`;
     filteredTickets.forEach((m,i)=>{
       const sBadge=m.status==='All Done'?'badge-green':m.status==='Partially Done'?'badge-orange':'badge-red';
-      mtH+=`<tr><td>${i+1}</td><td>${m.ticket}</td><td>${m.order_id}</td><td>${m.city}</td><td>${m.category}</td><td>${m.job_type}</td><td>${m.total_trips}</td><td><span class="badge ${sBadge}">${m.status}</span></td><td style="color:var(--red);font-weight:700">${m.waste}</td></tr>`;
+      mtH+=`<tr onclick="openOrderDrill('${m.order_id}')" style="cursor:pointer" title="Click to view all tickets for order ${m.order_id}"><td>${i+1}</td><td>${m.ticket}</td><td>${m.order_id}</td><td>${m.city}</td><td>${m.category}</td><td>${m.job_type}</td><td>${m.total_trips}</td><td><span class="badge ${sBadge}">${m.status}</span></td><td style="color:var(--red);font-weight:700">${m.waste}</td></tr>`;
     });
     document.getElementById('trip-ticket-detail').innerHTML = mtH+'</tbody></table>';
   } else {
@@ -4202,7 +4271,8 @@ function renderTripPage(){
       var sev=a.pct<60?'critical':(a.pct<80?'high':'medium');
       var pBdg=a.pct<80?'badge-red':a.pct<90?'badge-orange':'badge-green';
       var sBdg=sev==='critical'?'badge-red':'badge-orange';
-      return '<tr><td>'+escapeHtml(a.agent)+'</td><td>'+escapeHtml(a.city)+'</td><td>'+a.total+'</td>'+
+      return '<tr data-agent="'+escapeHtml(a.agent)+'" data-city="'+escapeHtml(a.city)+'" onclick="openAgentDrill(this.dataset.agent,this.dataset.city)" style="cursor:pointer" title="Click to view this agent\'s tasks">'+
+        '<td>'+escapeHtml(a.agent)+'</td><td>'+escapeHtml(a.city)+'</td><td>'+a.total+'</td>'+
         '<td style="color:var(--green);font-weight:700">'+a.done+'</td>'+
         '<td style="color:'+(a.not_done>0?'var(--red)':'var(--muted)')+';font-weight:'+(a.not_done>0?'700':'400')+'">'+a.not_done+'</td>'+
         '<td><span class="badge '+pBdg+'">'+a.pct+'%</span></td>'+
@@ -4682,13 +4752,16 @@ function recomputeAggregates(startYMD,endYMD){
   var RH=RAW_EXCEL.headers;
   var R_SI=RH.indexOf('Status'),R_ASI=RH.indexOf('Case Addigned Date');
   var R_CI=RH.indexOf('City'),R_JTI=RH.indexOf('Job Type');
-  var R_SDI=RH.indexOf('Scheduled Date'),R_FSI=RH.indexOf('first Schedule Date');
+  var R_SDI=RH.indexOf('Scheduled Date');
+  var R_FSI=RH.indexOf('first Schedule Date');if(R_FSI<0)R_FSI=RH.indexOf('First Schedule Date');
   var R_RDI=RH.indexOf('Requested Date');
+  var R_TKI=RH.indexOf('Ticket Number');
   var DONE_ST={'Pickup Done':1,'Completed':1,'Delivered':1};
 
   var EXCL_JT_SET={'PO Payment':1,'Stock Transfer':1,'Refurb Transfer':1};
   var rawFiltered=RAW_EXCEL.rows.filter(function(r){var jt=r[R_JTI]||'';return !EXCL_JT_SET[jt]&&r[R_SDI]>=startYMD&&r[R_SDI]<=endYMD&&!isThursdayYMD(r[R_SDI]);}); // filter by selected date range; Thursdays excluded
 
+  var _tatRowMap={};
   var rTatC={},rTatJC={};
   var rTatCat={Delivery:{total:0,done:0,within:0,breach:0,avg_sum:0,resch:0},Pickup:{total:0,done:0,within:0,breach:0,avg_sum:0,resch:0},SR:{total:0,done:0,within:0,breach:0,avg_sum:0,resch:0}};
   newCities.forEach(function(c){rTatC[c]={total:0,done:0,within:0,breach:0,avg_sum:0,resch:0};rTatJC[c]={};});
@@ -4716,10 +4789,12 @@ function recomputeAggregates(startYMD,endYMD){
         rTatJC[city][jt].resch++;
       }
     }
-    if(!isDone)return;
-    if(!assignedDate||!sd)return;
+    var tkKey=R_TKI>=0?(r[R_TKI]||''):'';
+    if(!isDone){if(tkKey)_tatRowMap[tkKey]={done:false,resch:!!isResch,within:false,breach:false};return;}
+    if(!assignedDate||!sd){if(tkKey)_tatRowMap[tkKey]={done:false,resch:false,within:false,breach:false};return;}
     var tat=dateDiffDays(sd,assignedDate);if(tat<0)tat=0;
     var target=TAT_TARGETS[cat]||3,within=tat<=target;
+    if(tkKey)_tatRowMap[tkKey]={done:true,resch:false,within:within,breach:!within};
     if(rTatC[city]){rTatC[city].done++;rTatC[city].avg_sum+=tat;if(within)rTatC[city].within++;else rTatC[city].breach++;}
     if(rTatJC[city]){
       if(!rTatJC[city][jt])rTatJC[city][jt]={name:jt,cat:cat,target:target,done:0,within:0,breach:0,avg_sum:0,resch:0};
@@ -4728,6 +4803,7 @@ function recomputeAggregates(startYMD,endYMD){
     }
     if(rTatCat[cat]){rTatCat[cat].done++;rTatCat[cat].avg_sum+=tat;if(within)rTatCat[cat].within++;else rTatCat[cat].breach++;}
   });
+  window.TAT_ROW_MAP=_tatRowMap;
 
   TAT_RAW.city=newCities.map(function(name){
     var d=rTatC[name]||{total:0,done:0,within:0,breach:0,avg_sum:0,resch:0};

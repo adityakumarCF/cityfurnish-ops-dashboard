@@ -293,7 +293,7 @@ PIPELINE = [
         "Ticket Number":        "$ticketNumber",
         "Transition Date":      "$createdAt",
         "Scheduled Date":       "$scheduledDate",
-        "First Schedule Date":  "$firstScheduleDate",
+        "first Schedule Date":  "$firstScheduleDate",
         "Done Date":            "$doneDate",
         "Adhoc Vehicle":        "$adhoc_vehicle",
         "LOB":                  "$lob",
