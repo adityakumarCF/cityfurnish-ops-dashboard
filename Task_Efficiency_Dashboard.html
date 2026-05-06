@@ -2548,7 +2548,7 @@ function renderKpiTrendPage(){
   var avg7fadOv=snap7.fad.overall.assigned?+(snap7.fad.overall.fad/snap7.fad.overall.assigned*100).toFixed(1):0;
   // ── FSD data ──
   var fsdA=snapA.fsd.overall.pct,fsdB=snapB.fsd.overall.pct,fsdDelta=+(fsdA-fsdB).toFixed(1);
-  var avg7fsdOv=snap7.fsd.overall.total?+(snap7.fsd.overall.true_c/snap7.fsd.overall.total*100).toFixed(1):0;
+  var avg7fsdOv=(snap7.fsd.overall.true_c+snap7.fsd.overall.false_c)?+(snap7.fsd.overall.true_c/(snap7.fsd.overall.true_c+snap7.fsd.overall.false_c)*100).toFixed(1):0;
   // ── TAT data ──
   var tatA=snapA.tat.pct_within,tatB=snapB.tat.pct_within,tatDelta=+(tatA-tatB).toFixed(1);
   var reschA=snapA.tat.resch,reschB=snapB.tat.resch,reschDelta=reschA-reschB;
@@ -2581,7 +2581,7 @@ function renderKpiTrendPage(){
   [['overall','Overall FSD %'],['Delivery','Delivery FSD %'],['Pickup','Pickup FSD %'],['SR','SR FSD %']].forEach(function(kv){
     var k=kv[0],lab=kv[1];
     var vA=snapA.fsd[k].pct,vB=snapB.fsd[k].pct;
-    var v7=snap7.fsd[k].total?+(snap7.fsd[k].true_c/snap7.fsd[k].total*100).toFixed(1):0;
+    var v7=(snap7.fsd[k].true_c+snap7.fsd[k].false_c)?+(snap7.fsd[k].true_c/(snap7.fsd[k].true_c+snap7.fsd[k].false_c)*100).toFixed(1):0;
     fsdRows+=tRow(lab,vA,vB,v7,true,true);
   });
   fsdRows+='<tr class="total-row"><td style="text-align:left">Total Assigned</td><td>'+snapA.fsd.overall.total+'</td>'
@@ -3390,7 +3390,7 @@ function svRenderFsd(cities,dateLabel){
     fsdMetricRow('No FS Date',function(d){return d.nofs;},totN,null);
     fsdMetricRow('Total',function(d){return d.total;},totAll,null);
     fsdMetricRow('True%',
-      function(d){var p=d.total?(d.true_c/d.total*100):0;return p.toFixed(1)+'%';},
+      function(d){var dn=d.true_c+d.false_c;var p=dn?(d.true_c/dn*100):0;return p.toFixed(1)+'%';},
       totPct.toFixed(1)+'%',
       function(d,val){var p=parseFloat(val);return p>=60?'sv-g':p>=40?'sv-o':'sv-r';}
     );
@@ -3883,7 +3883,7 @@ function renderFsdPage(){
     let h=`<div class="card"><h3>${cat}</h3><table><thead><tr><th>City</th><th>Done</th><th>Not Done</th><th>Total</th><th>FSD %</th></tr></thead><tbody>`;
     fsdRowsList.forEach(rlbl=>{
       let d;
-      if(rlbl==='Total'){d={true_c:0,false_c:0,nofs:0,total:0};cities.forEach(ci=>{if(FSD.fsd[cat][ci]){d.true_c+=FSD.fsd[cat][ci].true_c;d.false_c+=FSD.fsd[cat][ci].false_c;d.nofs+=FSD.fsd[cat][ci].nofs;d.total+=FSD.fsd[cat][ci].total;}});d.pct=d.total?(d.true_c/d.total*100):0;}
+      if(rlbl==='Total'){d={true_c:0,false_c:0,nofs:0,total:0};cities.forEach(ci=>{if(FSD.fsd[cat][ci]){d.true_c+=FSD.fsd[cat][ci].true_c;d.false_c+=FSD.fsd[cat][ci].false_c;d.nofs+=FSD.fsd[cat][ci].nofs;d.total+=FSD.fsd[cat][ci].total;}});var dn=d.true_c+d.false_c;d.pct=dn?(d.true_c/dn*100):0;}
       else{d=FSD.fsd[cat][rlbl]||{true_c:0,false_c:0,nofs:0,total:0,pct:0};}
       const rowCls=(rlbl==='Total')?' class="total-row"':'';
       h+=`<tr${rowCls}><td style="text-align:center">${rlbl}</td><td>${d.true_c}</td><td>${d.false_c}</td><td>${d.total}</td><td>${pctBadge(d.pct,[60,40])}</td></tr>`;
@@ -4330,7 +4330,7 @@ function renderOverviewPage(){
   var fsdTrue=0,fsdFalse=0,fsdTotal=0,fsdVTot=0,fsdVTrue=0,fsdVDays=0;
   FSD.categories.forEach(function(cat){allC.forEach(function(c){var d=FSD.fsd[cat]&&FSD.fsd[cat][c];if(d){fsdTrue+=d.true_c;fsdFalse+=d.false_c;fsdTotal+=d.total;}});});
   allC.forEach(function(c){var v=FSD.vehicle[c];if(v){fsdVTot+=v.total_vehicles;fsdVTrue+=v.fsd_true;fsdVDays+=(v.vehicle_days||v.total_vehicles);}});
-  var fsdPct=fsdTotal?(fsdTrue/fsdTotal*100).toFixed(1):'0.0';
+  var fsdPct=(fsdTrue+fsdFalse)?(fsdTrue/(fsdTrue+fsdFalse)*100).toFixed(1):'0.0';
   var fsdEff=fsdVDays?(fsdVTrue/fsdVDays).toFixed(2):'0.00';
 
   // ── TAT aggregates ──
@@ -5138,7 +5138,7 @@ function renderActionFadFsd(){
     cities.forEach(function(city){
       var d=FSD.fsd[cat]&&FSD.fsd[cat][city];
       if(!d||d.total===0||(d.true_c+d.false_c)===0) return;
-      var pct=+(d.true_c/d.total*100).toFixed(1);
+      var pct=+(d.true_c/(d.true_c+d.false_c)*100).toFixed(1);
       if(pct<FSD_THR){
         var sev=pct<FSD_THR*0.5?'critical':(FSD_THR-pct>15?'high':'medium');
         bySev[sev].push({type:'FSD',city:city,cat:cat,pct:pct,true_c:d.true_c,false_c:d.false_c,total:d.total,thr:FSD_THR});
