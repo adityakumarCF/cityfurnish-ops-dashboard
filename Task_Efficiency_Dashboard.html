@@ -4320,8 +4320,8 @@ function renderOverviewPage(){
   var fadAssign=0,fadDone=0,fadCount=0,fadVTot=0,fadVFad=0,fadVDays=0;
   FAD.categories.forEach(function(cat){allC.forEach(function(c){var d=FAD.fad[cat]&&FAD.fad[cat][c];if(d){fadAssign+=d.assigned;fadDone+=d.done;fadCount+=d.fad;}});});
   allC.forEach(function(c){var v=FAD.vehicle[c];if(v){fadVTot+=v.total_vehicles;fadVFad+=v.fad_count;fadVDays+=(v.vehicle_days||v.total_vehicles);}});
-  // FAD% = single-trip orders / total unique orders × 100 (NEW: order-level)
-  var fadPct=fadAssign?(fadCount/fadAssign*100).toFixed(1):'0.0';
+  // FAD% = FAD orders / total done orders (matches FAD Analysis page)
+  var fadPct=fadDone?(fadCount/fadDone*100).toFixed(1):'0.0';
   var fadEff=fadVDays?(fadVFad/fadVDays).toFixed(2):'0.00';
 
   // ── FSD aggregates ──
