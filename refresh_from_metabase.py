@@ -532,7 +532,7 @@ for row in rows_raw:
 
     processed_rows.append([
         city, jt, cat, done, veh_type, agent, del_d, sd_ymd,
-        trans, adh, veh_concat, oid, tkt, fs, fsd_flag
+        trans, adh, veh_concat, oid, tkt, fs, fsd_flag, rd
     ])
 
 print(f'[refresh] Kept {n_kept}, dropped {n_drop_future} future, {n_drop_no_sd} no-SD', flush=True)
@@ -652,7 +652,7 @@ except Exception as e:
 processed_headers = [
     'City','Job Type','Category','Done','VehicleType','Agent Name','Deliver Date',
     'Scheduled Date','Transport','Adhoc Vehicle','VehicleConcat','Order Id',
-    'Ticket Number','first Schedule Date','FSD'
+    'Ticket Number','first Schedule Date','FSD','Requested Date'
 ]
 exclusion_headers = ['Job Type','City','Category','Status','Agent Name','Scheduled Date']
 
