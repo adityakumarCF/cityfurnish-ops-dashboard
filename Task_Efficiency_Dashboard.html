@@ -3784,19 +3784,17 @@ function renderFadPage(){
   const cities = getSelectedCities('fad');
   renderFilterBar('filter-fad','fad');
 
-  // totalAssigned and totalDone match the Task report (use TASK.task source);
-  // totalFad is FAD-specific (globally-unique Done orders)
-  let totalDone=0,totalFad=0,totalAssigned=0;
+  let totalDone=0,totalFad=0,totalFadDone=0,totalAssigned=0;
   FAD.categories.forEach(cat=>{
     cities.forEach(c=>{
       if(TASK.task[cat]&&TASK.task[cat][c]){
         totalAssigned+=TASK.task[cat][c].total||0;
         totalDone+=TASK.task[cat][c].done||0;
       }
-      if(FAD.fad[cat][c]) totalFad+=FAD.fad[cat][c].fad;
+      if(FAD.fad[cat][c]){totalFad+=FAD.fad[cat][c].fad;totalFadDone+=FAD.fad[cat][c].done;}
     });
   });
-  const overallFad = totalDone?((totalFad/totalDone)*100).toFixed(1):'0.0';
+  const overallFad = totalFadDone?((totalFad/totalFadDone)*100).toFixed(1):'0.0';
 
   let vTot=0,vDays=0,vDone=0,vFad=0;
   cities.forEach(c=>{const v=FAD.vehicle[c];if(v){vTot+=v.total_vehicles;vDays+=(v.vehicle_days||v.total_vehicles);vDone+=v.total_done;vFad+=v.fad_count;}});
@@ -4346,7 +4344,7 @@ function renderOverviewPage(){
   // ── Status helpers ──
   function sc(v,g,o){return v>=g?'ok':v>=o?'warn':'bad';}
   function si(v,g,o){return v>=g?'✓':v>=o?'⚠':'✗';}
-  var taskSt=sc(+taskPct,85,70),fadSt=sc(+fadPct,90,75),fsdSt=sc(+fsdPct,75,60),tatSt=sc(+tatPct,75,50),tripSt=sc(+tripPct,95,80);
+  var taskSt=sc(+taskPct,85,70),fadSt=sc(+fadPct,90,75),fsdSt=sc(+fsdPct,60,40),tatSt=sc(+tatPct,75,50),tripSt=sc(+tripPct,95,80);
   var tatSubLabel=tatSt==='bad'?'Critical — target ≥75%':tatSt==='warn'?'Below target':'On target';
   var taskNotDonePct=taskTotal?((taskTotal-taskDone)/taskTotal*100).toFixed(1):'0.0';
   // FAD-missed % is now relative to total orders (not done orders)
@@ -4369,7 +4367,7 @@ function renderOverviewPage(){
         '<div class="ov-sc-label">FSD True</div>'+
         '<div class="ov-sc-val">'+fsdPct+'%</div>'+
         '<div class="ov-sc-sub">'+(fsdSt==='ok'?'On target':'Below target')+'</div>'+
-        '<div class="ov-status-icon">'+si(+fsdPct,75,60)+'</div>'+
+        '<div class="ov-status-icon">'+si(+fsdPct,60,40)+'</div>'+
       '</div>'+
       '<div class="ov-status-card ov-'+tatSt+'" onclick="goToReport(\'tat\')">'+
         '<div class="ov-sc-label">Within TAT</div>'+
