@@ -696,12 +696,15 @@ html = re.sub(r"var MIN_YMD='[^']+',MAX_YMD='[^']+';", f"var MIN_YMD='{new_min}'
 html = re.sub(r"var MAX_YMD_GLOBAL = '[^']+';", f"var MAX_YMD_GLOBAL = '{new_max}';", html, count=1)
 html = re.sub(r"var MIN_YMD_GLOBAL = '[^']+';", f"var MIN_YMD_GLOBAL = '{new_min}';", html, count=1)
 
-# Default selected date = max date
+# Default selected date = max date.
+# Must include EVERY report key that uses resolveCurrentRange — missing keys fall back
+# to the hardcoded default in JS (May 2) which causes count mismatches across tabs.
 y, mo, dy = max_dt.year, max_dt.month-1, max_dt.day
+date_str = f"new Date({y},{mo},{dy})"
 cd_new = (
-    f"var calDates={{task:new Date({y},{mo},{dy}),fad:new Date({y},{mo},{dy}),"
-    f"fsd:new Date({y},{mo},{dy}),tat:new Date({y},{mo},{dy}),"
-    f"trip:new Date({y},{mo},{dy}),overview:new Date({y},{mo},{dy})}};"
+    f"var calDates={{task:{date_str},fad:{date_str},"
+    f"fsd:{date_str},tat:{date_str},trip:{date_str},overview:{date_str},"
+    f"kpitrend:{date_str},benchmark:{date_str},action:{date_str},simplified:{date_str}}};"
 )
 html = re.sub(r"var calDates=\{[^}]+\};", cd_new, html, count=1)
 html = re.sub(r"var calMonth=\d+,calYear=\d+,calSelectedDate=", f"var calMonth={mo},calYear={y},calSelectedDate=", html, count=1)
