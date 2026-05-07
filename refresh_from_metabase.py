@@ -46,6 +46,9 @@ IST = timezone(timedelta(hours=5, minutes=30))
 DONE_STATUSES   = {'Pickup Done', 'Completed', 'Delivered'}
 SR_PATTERN      = re.compile(r'repair|replace|upgrade|relocation|installation', re.IGNORECASE)
 EXCL_JOB_TYPES  = {'PO Payment', 'Stock Transfer', 'Refurb Transfer'}
+# Only these 5 cities are tracked in ops dashboards. All other cities (Chennai, Hosur,
+# Jaipur, Nasik, etc.) are excluded from PROCESSED_EXCEL — they never reach the dashboard.
+ALLOWED_CITIES = {'Bangalore', 'Gurgaon', 'Hyderabad', 'Mumbai', 'Pune'}
 
 # ─────────────────────────────────────────────────────────────
 # Helpers
@@ -500,6 +503,9 @@ for row in rows_raw:
 
     status = (norm[i['Status']] or '') if i['Status']>=0 else ''
     city   = (norm[i['City']] or '')   if i['City']>=0 else ''
+    # Skip rows from non-allowed cities (Chennai, Hosur, Jaipur, Nasik, etc.)
+    if city not in ALLOWED_CITIES:
+        continue
     jt     = (norm[i['JobType']] or '') if i['JobType']>=0 else ''
     fs     = norm[i['FSD']] if i['FSD']>=0 else ''
     rd     = norm[i['RD']]  if i['RD']>=0  else ''
