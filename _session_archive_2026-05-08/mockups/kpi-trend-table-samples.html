@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>KPI Trend Tables — Founder-Glance Designs</title>
+<style>
+  body{font-family:'Inter','Plus Jakarta Sans',sans-serif;background:#f0fdfa;margin:0;padding:32px;color:#0f172a;max-width:1400px;margin:auto}
+  h1{font-size:24px;font-weight:800;margin:0 0 8px}
+  h2{font-size:17px;font-weight:800;margin:38px 0 6px;color:#0d9488;border-left:4px solid #14b8a6;padding-left:12px}
+  h3{font-size:15px;font-weight:700;margin:0 0 14px;color:#0f172a;display:flex;align-items:center;gap:8px}
+  h3 .dot{width:9px;height:9px;border-radius:50%;background:#6366f1}
+  .sub{color:#64748b;font-size:13px;margin-bottom:8px;line-height:1.5}
+  .card{background:#fff;border:1px solid rgba(15,23,42,0.06);border-radius:14px;padding:18px 22px;margin-bottom:18px;box-shadow:0 2px 4px rgba(15,23,42,0.04),0 12px 24px -12px rgba(15,118,110,0.10)}
+
+  /* Tables shared */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  table th{text-align:left;padding:10px 8px;background:#f8fafc;color:#475569;font-weight:700;font-size:11px;letter-spacing:0.4px;text-transform:uppercase;border-bottom:1px solid #e2e8f0}
+  table th.center{text-align:center}
+  table td{padding:11px 8px;border-bottom:1px solid #f1f5f9;color:#0f172a;vertical-align:middle}
+  table tr:hover td{background:#f0fdfa}
+  table .metric-name{font-weight:700;color:#0f172a;white-space:nowrap}
+  table .day-val{font-weight:800;font-size:14px;color:#0f172a}
+  table .ref-val{color:#64748b}
+  table .delta-up{color:#10b981;font-weight:800;white-space:nowrap}
+  table .delta-down{color:#ef4444;font-weight:800;white-space:nowrap}
+  table .delta-flat{color:#94a3b8;font-weight:700}
+  table .center{text-align:center}
+
+  /* Verdict pills */
+  .verdict-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:800;letter-spacing:0.3px;white-space:nowrap}
+  .v-up{background:rgba(16,185,129,0.10);color:#059669;border:1px solid rgba(16,185,129,0.25)}
+  .v-down{background:rgba(239,68,68,0.10);color:#dc2626;border:1px solid rgba(239,68,68,0.25)}
+  .v-mixed{background:rgba(245,158,11,0.10);color:#d97706;border:1px solid rgba(245,158,11,0.25)}
+  .v-flat{background:rgba(100,116,139,0.10);color:#475569;border:1px solid rgba(100,116,139,0.25)}
+
+  /* Cell heat backgrounds */
+  .heat-good{background:rgba(16,185,129,0.06)}
+  .heat-bad{background:rgba(239,68,68,0.06)}
+  .heat-warn{background:rgba(245,158,11,0.06)}
+
+  /* Sparkline */
+  svg.spark{display:block}
+
+  /* Insight strip (Option D) */
+  .insight-strip{display:flex;gap:12px;padding:14px 16px;background:linear-gradient(135deg,#fef3c7 0%,#fed7aa 100%);border:1px solid #f59e0b40;border-radius:12px;margin-bottom:18px;flex-wrap:wrap;align-items:center}
+  .insight-strip .label{font-size:11px;color:#78350f;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;margin-right:6px}
+  .insight-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:100px;background:#fff;border:1px solid #f59e0b40;font-size:12px;font-weight:700;color:#0f172a}
+  .insight-chip.gain{border-color:#10b98140;color:#059669}
+  .insight-chip.loss{border-color:#ef444440;color:#dc2626}
+  .insight-chip strong{color:inherit}
+
+  /* Sticky founder banner */
+  .glance-banner{padding:16px 22px;background:#fff;border:1px solid rgba(20,184,166,0.18);border-radius:14px;margin-bottom:18px;box-shadow:0 2px 4px rgba(15,23,42,0.04)}
+  .glance-row{display:flex;gap:24px;flex-wrap:wrap;align-items:center}
+  .glance-stat{display:flex;flex-direction:column;gap:2px}
+  .glance-stat .l{font-size:10px;color:#64748b;font-weight:700;letter-spacing:0.4px;text-transform:uppercase}
+  .glance-stat .v{font-size:18px;font-weight:900}
+  .glance-stat .v.green{color:#10b981}
+  .glance-stat .v.red{color:#ef4444}
+
+  /* Recommendation card */
+  .rec-card{background:#f0fdfa;border:2px solid #14b8a6;border-radius:14px;padding:18px 22px;margin:30px 0}
+  .rec-card strong{color:#0d9488}
+  ul{margin:6px 0;padding-left:22px}
+  li{margin:4px 0;line-height:1.5;font-size:13px}
+</style>
+</head>
+<body>
+
+<h1>KPI Trend tables — founder-glance designs</h1>
+<p class="sub">Goal: founder opens KPI Trend tab → in one glance sees <strong>what improved, what got worse, and how today compares to recent history</strong>. Three layout options below + extras (sparkline / insight strip / verdict). Recommendation at the bottom.</p>
+
+<!-- ───────────────────────────────────── -->
+<h2>Option A — Minimal expansion (7 columns, no extras)</h2>
+<div class="card">
+  <h3><span class="dot"></span>FAD by job type</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Metric</th>
+        <th class="center">6 May</th>
+        <th class="center">5 May</th>
+        <th class="center">7d Avg</th>
+        <th class="center">30d Avg</th>
+        <th class="center">Δ vs 5 May</th>
+        <th class="center">Δ vs 7d</th>
+        <th class="center">Δ vs 30d</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="metric-name">Overall FAD %</td>
+        <td class="center day-val">68.2%</td>
+        <td class="center ref-val">70.4%</td>
+        <td class="center ref-val">79.1%</td>
+        <td class="center ref-val">76.7%</td>
+        <td class="center delta-down">▼ -2.2pp</td>
+        <td class="center delta-down">▼ -10.9pp</td>
+        <td class="center delta-down">▼ -8.5pp</td>
+      </tr>
+      <tr>
+        <td class="metric-name">Delivery FAD %</td>
+        <td class="center day-val">88.5%</td>
+        <td class="center ref-val">87.2%</td>
+        <td class="center ref-val">91.9%</td>
+        <td class="center ref-val">91.1%</td>
+        <td class="center delta-up">▲ +1.3pp</td>
+        <td class="center delta-down">▼ -3.4pp</td>
+        <td class="center delta-down">▼ -2.6pp</td>
+      </tr>
+      <tr>
+        <td class="metric-name">Pickup FAD %</td>
+        <td class="center day-val">52.2%</td>
+        <td class="center ref-val">58.6%</td>
+        <td class="center ref-val">70.4%</td>
+        <td class="center ref-val">75.6%</td>
+        <td class="center delta-down">▼ -6.4pp</td>
+        <td class="center delta-down">▼ -18.2pp</td>
+        <td class="center delta-down">▼ -23.4pp</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="sub" style="font-size:11px;margin-top:10px"><strong>Pros:</strong> simple, all numbers in one place. <strong>Cons:</strong> 8 columns is dense; founder still has to read each delta to form a verdict.</p>
+</div>
+
+<!-- ───────────────────────────────────── -->
+<h2>Option B — Verdict pill at the right (recommended for glance)</h2>
+<div class="card">
+  <h3><span class="dot"></span>FAD by job type</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Metric</th>
+        <th class="center">6 May</th>
+        <th class="center">5 May</th>
+        <th class="center">7d Avg</th>
+        <th class="center">30d Avg</th>
+        <th class="center">Δ d-1</th>
+        <th class="center">Δ 7d</th>
+        <th class="center">Δ 30d</th>
+        <th class="center">Verdict</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="metric-name">Overall FAD %</td>
+        <td class="center day-val heat-bad">68.2%</td>
+        <td class="center ref-val">70.4%</td>
+        <td class="center ref-val">79.1%</td>
+        <td class="center ref-val">76.7%</td>
+        <td class="center delta-down">▼ -2.2pp</td>
+        <td class="center delta-down">▼ -10.9pp</td>
+        <td class="center delta-down">▼ -8.5pp</td>
+        <td class="center"><span class="verdict-pill v-down">▼ Declining</span></td>
+      </tr>
+      <tr>
+        <td class="metric-name">Delivery FAD %</td>
+        <td class="center day-val heat-warn">88.5%</td>
+        <td class="center ref-val">87.2%</td>
+        <td class="center ref-val">91.9%</td>
+        <td class="center ref-val">91.1%</td>
+        <td class="center delta-up">▲ +1.3pp</td>
+        <td class="center delta-down">▼ -3.4pp</td>
+        <td class="center delta-down">▼ -2.6pp</td>
+        <td class="center"><span class="verdict-pill v-mixed">↔ Mixed</span></td>
+      </tr>
+      <tr>
+        <td class="metric-name">Pickup FAD %</td>
+        <td class="center day-val heat-bad">52.2%</td>
+        <td class="center ref-val">58.6%</td>
+        <td class="center ref-val">70.4%</td>
+        <td class="center ref-val">75.6%</td>
+        <td class="center delta-down">▼ -6.4pp</td>
+        <td class="center delta-down">▼ -18.2pp</td>
+        <td class="center delta-down">▼ -23.4pp</td>
+        <td class="center"><span class="verdict-pill v-down">▼ Declining</span></td>
+      </tr>
+      <tr>
+        <td class="metric-name">SR FAD %</td>
+        <td class="center day-val heat-good">9.5%</td>
+        <td class="center ref-val">5.0%</td>
+        <td class="center ref-val">37.7%</td>
+        <td class="center ref-val">29.8%</td>
+        <td class="center delta-up">▲ +4.5pp</td>
+        <td class="center delta-down">▼ -28.2pp</td>
+        <td class="center delta-down">▼ -20.3pp</td>
+        <td class="center"><span class="verdict-pill v-mixed">↔ Mixed</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="sub" style="font-size:11px;margin-top:10px"><strong>Verdict logic:</strong> all 3 deltas up → ▲ Improving (green) · all 3 deltas down → ▼ Declining (red) · mix → ↔ Mixed (orange) · everything zero → flat (grey).<br/><strong>Heat cell on Day column:</strong> green if Day ≥ 7d & 30d, red if Day &lt; both, orange if mixed. Founder can scan the LEFT side and the RIGHT side and immediately know the answer.</p>
+</div>
+
+<!-- ───────────────────────────────────── -->
+<h2>Option C — Verdict pill + 7-day sparkline</h2>
+<div class="card">
+  <h3><span class="dot"></span>FAD by job type</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Metric</th>
+        <th class="center">7d Trend</th>
+        <th class="center">6 May</th>
+        <th class="center">7d Avg</th>
+        <th class="center">30d Avg</th>
+        <th class="center">Δ d-1</th>
+        <th class="center">Δ 7d</th>
+        <th class="center">Δ 30d</th>
+        <th class="center">Verdict</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="metric-name">Overall FAD %</td>
+        <td class="center"><svg class="spark" width="80" height="24" viewBox="0 0 80 24"><polyline fill="none" stroke="#ef4444" stroke-width="2" points="0,4 13,8 27,5 40,7 53,10 67,14 80,18"/><circle cx="80" cy="18" r="3" fill="#ef4444"/></svg></td>
+        <td class="center day-val heat-bad">68.2%</td>
+        <td class="center ref-val">79.1%</td>
+        <td class="center ref-val">76.7%</td>
+        <td class="center delta-down">▼ -2.2pp</td>
+        <td class="center delta-down">▼ -10.9pp</td>
+        <td class="center delta-down">▼ -8.5pp</td>
+        <td class="center"><span class="verdict-pill v-down">▼ Declining</span></td>
+      </tr>
+      <tr>
+        <td class="metric-name">Delivery FAD %</td>
+        <td class="center"><svg class="spark" width="80" height="24" viewBox="0 0 80 24"><polyline fill="none" stroke="#f59e0b" stroke-width="2" points="0,4 13,3 27,5 40,8 53,9 67,7 80,6"/><circle cx="80" cy="6" r="3" fill="#f59e0b"/></svg></td>
+        <td class="center day-val heat-warn">88.5%</td>
+        <td class="center ref-val">91.9%</td>
+        <td class="center ref-val">91.1%</td>
+        <td class="center delta-up">▲ +1.3pp</td>
+        <td class="center delta-down">▼ -3.4pp</td>
+        <td class="center delta-down">▼ -2.6pp</td>
+        <td class="center"><span class="verdict-pill v-mixed">↔ Mixed</span></td>
+      </tr>
+      <tr>
+        <td class="metric-name">Pickup FAD %</td>
+        <td class="center"><svg class="spark" width="80" height="24" viewBox="0 0 80 24"><polyline fill="none" stroke="#ef4444" stroke-width="2" points="0,2 13,4 27,6 40,8 53,11 67,14 80,18"/><circle cx="80" cy="18" r="3" fill="#ef4444"/></svg></td>
+        <td class="center day-val heat-bad">52.2%</td>
+        <td class="center ref-val">70.4%</td>
+        <td class="center ref-val">75.6%</td>
+        <td class="center delta-down">▼ -6.4pp</td>
+        <td class="center delta-down">▼ -18.2pp</td>
+        <td class="center delta-down">▼ -23.4pp</td>
+        <td class="center"><span class="verdict-pill v-down">▼ Declining</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="sub" style="font-size:11px;margin-top:10px"><strong>Sparkline</strong> shows the last 7 days inline — instant visual of trajectory beyond the verdict pill. Adds ~80px width per row but huge glance value. <strong>Cons:</strong> ~9 columns now; some scroll on narrow screens.</p>
+</div>
+
+<!-- ───────────────────────────────────── -->
+<h2>Extra layer — Insight strip on top of every section (works with any option)</h2>
+<div class="card">
+  <h3><span class="dot"></span>KPI Snapshot</h3>
+
+  <div class="insight-strip">
+    <span class="label">📍 Day vs 30d</span>
+    <span class="insight-chip loss">▼ <strong>Pickup FAD</strong> down 23.4pp — <em>biggest drop</em></span>
+    <span class="insight-chip loss">▼ <strong>Overall FAD</strong> in 25th percentile of last 30 days</span>
+    <span class="insight-chip gain">▲ <strong>Delivery FSD</strong> 3-day improving streak</span>
+    <span class="insight-chip">⚠ 4 of 8 KPIs declining</span>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Metric</th>
+        <th class="center">6 May</th>
+        <th class="center">5 May</th>
+        <th class="center">7d Avg</th>
+        <th class="center">30d Avg</th>
+        <th class="center">Δ d-1</th>
+        <th class="center">Δ 7d</th>
+        <th class="center">Δ 30d</th>
+        <th class="center">Verdict</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="metric-name">Overall FAD %</td>
+        <td class="center day-val heat-bad">68.2%</td>
+        <td class="center ref-val">70.4%</td>
+        <td class="center ref-val">79.1%</td>
+        <td class="center ref-val">76.7%</td>
+        <td class="center delta-down">▼ -2.2pp</td>
+        <td class="center delta-down">▼ -10.9pp</td>
+        <td class="center delta-down">▼ -8.5pp</td>
+        <td class="center"><span class="verdict-pill v-down">▼ Declining</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="sub" style="font-size:11px;margin-top:10px">The strip surfaces the <strong>1-2 most actionable insights</strong> per section — biggest mover, percentile rank for the day, multi-day streaks, "X of Y declining" summary. Founder reads only the strip if short on time; reads the table if curious.</p>
+</div>
+
+<!-- ───────────────────────────────────── -->
+<h2>Founder summary banner — top of the entire tab (one-glance verdict)</h2>
+<div class="card" style="background:#f0fdfa;border:1px solid #14b8a6">
+
+  <div class="glance-banner" style="margin-bottom:0">
+    <div class="glance-row">
+      <div class="glance-stat">
+        <span class="l">Today vs Yesterday</span>
+        <span class="v"><span class="v green">5↑</span> · <span class="v red">3↓</span> · <span class="v" style="color:#64748b">0↔</span></span>
+      </div>
+      <div class="glance-stat">
+        <span class="l">Today vs 7d Avg</span>
+        <span class="v"><span class="v green">2↑</span> · <span class="v red">6↓</span> · <span class="v" style="color:#64748b">0↔</span></span>
+      </div>
+      <div class="glance-stat">
+        <span class="l">Today vs 30d Avg</span>
+        <span class="v"><span class="v green">3↑</span> · <span class="v red">5↓</span> · <span class="v" style="color:#64748b">0↔</span></span>
+      </div>
+      <div class="glance-stat" style="margin-left:auto">
+        <span class="l">Bottom line</span>
+        <span class="v" style="color:#dc2626">▼ Below recent baseline</span>
+      </div>
+    </div>
+  </div>
+  <p class="sub" style="font-size:11px;margin-top:10px">Founder sees this in <strong>under 2 seconds</strong> — knows whether the tab needs deeper attention. Sits ABOVE City × Category Leaders.</p>
+</div>
+
+<!-- ───────────────────────────────────── -->
+<h2>Other business-insight ideas (non-table additions)</h2>
+<div class="card">
+  <ul style="font-size:13px">
+    <li><strong>Streak counter</strong> per metric — "FAD declining 3 days in a row" → triggers attention.</li>
+    <li><strong>Percentile ranking</strong> — "Today's Overall FAD is in the 25th percentile of the last 30 days" → tells you HOW bad/good without needing context.</li>
+    <li><strong>Anomaly flag</strong> — when Day value is &gt;1.5× standard deviation from 30d mean → ⚠ amber label.</li>
+    <li><strong>Top-3 movers strip</strong> — biggest improvers / decliners by absolute pp — surfaces the actionable items.</li>
+    <li><strong>"Why" hints</strong> — when Reschedule rate spikes &gt;1.5× 7d-avg, auto-show top reschedule reasons inline (we already store these).</li>
+    <li><strong>Goal lines</strong> — once we agree thresholds (e.g. Overall FAD ≥ 80%), color the day cell red if below target — actionable beyond comparison.</li>
+    <li><strong>City callout</strong> — "Mumbai dragging Overall FAD down by 6pp" — automatically detect which city is responsible for the day's overall miss.</li>
+  </ul>
+</div>
+
+<!-- ───────────────────────────────────── -->
+<div class="rec-card">
+  <strong style="font-size:15px">Recommendation</strong>
+  <p style="font-size:13px;line-height:1.6;margin:8px 0">
+    Go with <strong>Option B (verdict pill)</strong> + <strong>Founder summary banner</strong> at the very top + <strong>Insight strip</strong> per section.
+    Skip sparklines for v1 — they look great but are extra render cost on a 28MB file, and verdict pill + heat cell already give 90% of the glance value.
+  </p>
+  <p style="font-size:13px;line-height:1.6;margin:8px 0">
+    <strong>Concretely the page becomes:</strong>
+  </p>
+  <ol style="font-size:13px;line-height:1.6">
+    <li><strong>Founder summary banner</strong> — 4 stat blocks (vs yesterday / vs 7d / vs 30d / bottom-line verdict)</li>
+    <li><strong>City × Category Leaders</strong> (untouched per your direction)</li>
+    <li><strong>KPI Snapshot</strong> — insight strip + 9-column table (FAD by JT + FSD by JT)</li>
+    <li><strong>Trip Efficiency</strong> — insight strip + 9-column table (city, trip metrics, JT)</li>
+    <li><strong>TAT Comparison</strong> — insight strip + 9-column table (city, overall, JT)</li>
+  </ol>
+  <p style="font-size:12px;color:#64748b;margin:8px 0 0">Confirm this and I'll build it. Let me know if you want sparklines added in v2 or any of the other ideas (streaks, anomaly flags, goal lines, city callouts) prioritised.</p>
+</div>
+
+</body>
+</html>
