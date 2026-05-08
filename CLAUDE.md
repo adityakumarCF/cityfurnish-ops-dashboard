@@ -27,7 +27,7 @@ Page anchors use `id="page-<key>"`. Render functions are `render<Key>Page()`. Da
 
 - **Cities:** Allowed = `Bangalore, Gurgaon, Hyderabad, Mumbai, Pune` only. Enforced in Python (`ALLOWED_CITIES`) and JS (`CITIES_ALLOWED`).
 - **Excluded job types:** `PO Payment, Stock Transfer, Refurb Transfer`. Filtered during Python build.
-- **Thursdays excluded** from all aggregation. Use `isThursdayYMD(sd)`.
+- **Off-days excluded** from aggregation. Use `isOffDay(sd, city)` — never bare `isThursdayYMD(sd)` in aggregations. Default rule: Thursdays are off. Exceptions in `SEVEN_DAY_CITY_CUTOFF`: Bangalore operates 7-day from 2026-05-01, Gurgaon from 2026-04-01. Pre-cutoff Thursdays for those cities are still treated as off.
 - **Reschedule == FSD Missed:** `r[FSD] === 'False' || r[FSD] === 'NoFS'`. NoFS (Pending) counts as missed because the date commitment was missed. Used everywhere — TAT, KPI Trend, FSD page, drills, Reschedule Reason Breakdown, Top Offenders.
 - **FAD uniqueness:** Delivery/SR use full-history OID counts. **Pickup uses rolling 2-month window** (previous month start → max scheduled date).
 - **Vehicle-days, not unique fleet:** Done Efficiency, capacity, FAD/FSD vehicle tables all use vehicle-days (`Σ_day unique vehicles in city`). Otherwise weekly/monthly tables don't scale.
