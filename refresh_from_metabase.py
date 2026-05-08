@@ -35,6 +35,7 @@ ZOHO_CLIENT_ID     = os.environ.get('ZOHO_CLIENT_ID', '')
 ZOHO_CLIENT_SECRET = os.environ.get('ZOHO_CLIENT_SECRET', '')
 ZOHO_REFRESH_TOKEN = os.environ.get('ZOHO_REFRESH_TOKEN', '')
 ZOHO_ORG_ID        = os.environ.get('ZOHO_ORG_ID', '648392808')
+ZOHO_DC            = os.environ.get('ZOHO_DC', 'com')  # data center: com | in | eu | com.au | jp
 
 if not METABASE_URL or not API_KEY:
     print('ERROR: METABASE_URL and METABASE_API_KEY env vars required', file=sys.stderr)
@@ -101,7 +102,7 @@ def metabase_post(path, body=None, timeout=300):
 # ─────────────────────────────────────────────────────────────
 def zoho_access_token():
     """Exchange Zoho refresh token for a short-lived access token."""
-    url = 'https://accounts.zoho.in/oauth/v2/token'
+    url = f'https://accounts.zoho.{ZOHO_DC}/oauth/v2/token'
     params = (
         f'grant_type=refresh_token'
         f'&client_id={ZOHO_CLIENT_ID}'
@@ -141,7 +142,7 @@ def fetch_zoho_reasons(case_ids, cid_to_sd=None):
     reasons = {}
     debug_logged = False  # log raw customFields for first ticket only
     for idx, case_id in enumerate(case_ids):
-        url = f'https://desk.zoho.in/api/v1/tickets/{case_id}?include=customFields'
+        url = f'https://desk.zoho.{ZOHO_DC}/api/v1/tickets/{case_id}'
         req = urlreq.Request(url, headers=headers)
         try:
             with urlreq.urlopen(req, timeout=30) as r:
