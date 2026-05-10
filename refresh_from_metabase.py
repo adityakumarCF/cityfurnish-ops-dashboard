@@ -318,6 +318,7 @@ ITEM_PIPELINE = [
     {"$addFields": {"name": {"$concat": [
         {"$ifNull": ["$firstName", ""]}, " ", {"$ifNull": ["$lastName", ""]},
     ]}}},
+    # Date window — replaces the Gurgaon-only test filter from the source query.
     {"$match": {"scheduledDate": {
         "$gte": {"$date": f"{date_from}T00:00:00.000Z"},
         "$lt":  {"$date": f"{date_to}T00:00:00.000Z"},
@@ -339,9 +340,11 @@ ITEM_PIPELINE = [
     {"$unwind": {"path": "$agent",  "preserveNullAndEmptyArrays": True}},
     {"$unwind": {"path": "$result", "preserveNullAndEmptyArrays": True}},
     {"$addFields": {"odooId": "$cf_odoo_id"}},
+    # Projection mirrors the user's verified Mongo query (which returns populated barcodes).
     {"$project": {
         "_id": 0,
         "Scheduled Date": {"$dateToString": {"format": "%d/%m/%Y", "date": "$scheduledDate"}},
+        "Transition date": {"$dateToString": {"format": "%d/%m/%Y  %H:%M", "date": "$result.updatedAt"}},
         "City": "$city",
         "SO Number": {"$ifNull": ["$result.Sale_Order", "$odooId"]},
         "Ticket ID": "$ticketNumber",
@@ -375,17 +378,24 @@ ITEM_PIPELINE = [
             ],
             "default": "=",
         }},
-        "Quantity":             "$result.agentMarkqty",
-        "Physical Status":      "$result.status",
-        "Barcode":              "$result.barcode",
-        "Tried Barcode":        "$result.triedBarcode",
+        "Quantity":             {"$ifNull": ["$result.agentMarkqty", ""]},
+        "Physical Status":      {"$ifNull": ["$result.status", ""]},
+        # Wrap in $ifNull so Metabase always emits the column in its schema,
+        # even when the first sampled rows happen to have a null barcode.
+        # Without this, Metabase prunes the Barcode column entirely and the
+        # Python extractor's find_icol('Barcode') returns -1 → all rows blank.
+        "Barcode":              {"$ifNull": ["$result.barcode", ""]},
+        "Tried Barcode":        {"$ifNull": ["$result.triedBarcode", ""]},
         "Not scanning reasons": {"$ifNull": ["$result.message", ""]},
+        "Odoo Status": "",
         "Vehicle Number": {"$cond": {
             "if":   {"$eq": ["$transport", ""]},
             "then": "$adhoc_vehicle",
             "else": "$transport",
         }},
         "Agent Name": "$agent.name",
+        "status": 1,
+        "Status": "$result.status",
         "Expected Shipment Date": "$result.esd",
     }},
     {"$addFields": {"Movement": {"$ifNull": ["$Movement", "$movement"]}}},
